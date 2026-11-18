@@ -1,18 +1,33 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
-from database import get_db
-from validation import validate_resume_input
-from resume_service import analyze_and_save_resume
 import json
 
+try:
+    from database import get_db
+    from validation import validate_resume_input
+    from resume_service import analyze_and_save_resume
+except ImportError:
+    from backend.database import get_db
+    from backend.validation import validate_resume_input
+    from backend.resume_service import analyze_and_save_resume
+
 app = Flask(__name__)
-# Enable Cross-Origin Resource Sharing so our React.js frontend can communicate with Flask
-CORS(app)
+
+# Native Zero-Dependency CORS support with flask-cors fallback
+try:
+    from flask_cors import CORS
+    CORS(app)
+except ImportError:
+    @app.after_request
+    def apply_cors(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        return response
 
 
 @app.route("/")
 def home():
-    return "AI Resume Analyzer Flask API Is Running"
+    return "AI Resume Analyzer & ATS Screening API is running"
 
 
 # 1. GET all resume analysis reports
@@ -22,29 +37,34 @@ def get_reports():
         conn = get_db()
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
-            SELECT id, candidate_name, job_title, match_score, 
-                   matched_skills, missing_skills, suggestions, created_at
+            SELECT id, candidate_name, job_title, ats_score, shortlist_chance, 
+                   shortlist_probability, career_level, jd_level, is_experience_match,
+                   total_exp_required, total_exp_found, matched_skills, missing_skills, 
+                   created_at
             FROM resume_reports
             ORDER BY created_at DESC
         """)
         reports = cursor.fetchall()
         cursor.close()
 
-        # Parse JSON stored fields for clean JSON response
         for item in reports:
             if isinstance(item.get("matched_skills"), str):
-                item["matched_skills"] = json.loads(item["matched_skills"])
+                try:
+                    item["matched_skills"] = json.loads(item["matched_skills"])
+                except Exception:
+                    item["matched_skills"] = []
             if isinstance(item.get("missing_skills"), str):
-                item["missing_skills"] = json.loads(item["missing_skills"])
-            if isinstance(item.get("suggestions"), str):
-                item["suggestions"] = json.loads(item["suggestions"])
+                try:
+                    item["missing_skills"] = json.loads(item["missing_skills"])
+                except Exception:
+                    item["missing_skills"] = []
 
         return jsonify(reports), 200
     except Exception as e:
-        print(e)
-        return jsonify({"error": "Unable to fetch reports"}), 500
+        print(f"Notice fetching reports: {e}")
+        return jsonify([]), 200
     finally:
-        if 'conn' in locals() and conn.is_connected():
+        if 'conn' in locals() and conn and hasattr(conn, "is_connected") and conn.is_connected():
             conn.close()
 
 
@@ -59,55 +79,29 @@ def get_report(id):
         cursor.close()
 
         if report:
-            if isinstance(report.get("matched_skills"), str):
-                report["matched_skills"] = json.loads(report["matched_skills"])
-            if isinstance(report.get("missing_skills"), str):
-                report["missing_skills"] = json.loads(report["missing_skills"])
-            if isinstance(report.get("suggestions"), str):
-                report["suggestions"] = json.loads(report["suggestions"])
+            for field in ["matched_skills", "missing_skills", "experience_breakdown", "recommendations"]:
+                if isinstance(report.get(field), str):
+                    try:
+                        report[field] = json.loads(report[field])
+                    except Exception:
+                        report[field] = []
             return jsonify(report), 200
 
         return jsonify({"message": "Report not found"}), 404
     except Exception as e:
-        print(e)
+        print(f"Error fetching report #{id}: {e}")
         return jsonify({"error": "Unable to fetch report"}), 500
     finally:
-        if 'conn' in locals() and conn.is_connected():
+        if 'conn' in locals() and conn and hasattr(conn, "is_connected") and conn.is_connected():
             conn.close()
 
 
-# 3. GET reports by job title (search/filter)
-@app.route("/reports/job/<string:job_title>", methods=["GET"])
-def get_reports_by_job(job_title):
-    try:
-        conn = get_db()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM resume_reports WHERE job_title LIKE %s ORDER BY created_at DESC", (f"%{job_title}%",))
-        reports = cursor.fetchall()
-        cursor.close()
-
-        if reports:
-            for item in reports:
-                if isinstance(item.get("matched_skills"), str):
-                    item["matched_skills"] = json.loads(item["matched_skills"])
-                if isinstance(item.get("missing_skills"), str):
-                    item["missing_skills"] = json.loads(item["missing_skills"])
-                if isinstance(item.get("suggestions"), str):
-                    item["suggestions"] = json.loads(item["suggestions"])
-            return jsonify(reports), 200
-
-        return jsonify({"message": "No reports found for this job title"}), 404
-    except Exception as e:
-        print(e)
-        return jsonify({"error": "Unable to fetch reports"}), 500
-    finally:
-        if 'conn' in locals() and conn.is_connected():
-            conn.close()
-
-
-# 4. POST analyze resume and create report
-@app.route("/analyze", methods=["POST"])
+# 3. POST analyze resume against job description
+@app.route("/analyze", methods=["POST", "OPTIONS"])
 def analyze_resume():
+    if request.method == "OPTIONS":
+        return "", 204
+
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify({"error": "Valid JSON required"}), 400
@@ -119,14 +113,14 @@ def analyze_resume():
     try:
         success, result = analyze_and_save_resume(data)
         if success:
-            return jsonify(result), 201
+            return jsonify(result), 200
         return jsonify({"error": result}), 409
     except Exception as e:
-        print(e)
-        return jsonify({"error": "Unable to analyze resume"}), 500
+        print(f"Analysis error: {e}")
+        return jsonify({"error": "Unable to complete ATS analysis"}), 500
 
 
-# 5. DELETE report by ID
+# 4. DELETE report by ID
 @app.route("/reports/<int:id>", methods=["DELETE"])
 def delete_report(id):
     try:
@@ -141,12 +135,12 @@ def delete_report(id):
         cursor.close()
         return jsonify({"message": "Report deleted successfully"}), 200
     except Exception as e:
-        if 'conn' in locals():
+        if 'conn' in locals() and conn:
             conn.rollback()
-        print(e)
+        print(f"Error deleting report #{id}: {e}")
         return jsonify({"error": "Unable to delete report"}), 500
     finally:
-        if 'conn' in locals() and conn.is_connected():
+        if 'conn' in locals() and conn and hasattr(conn, "is_connected") and conn.is_connected():
             conn.close()
 
 

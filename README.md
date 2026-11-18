@@ -1,184 +1,111 @@
-# AI Resume Analyzer
+# AI Resume Analyzer & ATS Recruitment Intelligence
 
-An intelligent, beginner-friendly full-stack application that analyzes resumes against job descriptions, calculates an ATS (Applicant Tracking System) match score using **NLP, TF-IDF, and Cosine Similarity**, extracts candidate skills, flags missing keywords, generates targeted improvement suggestions, and stores analysis reports in **MySQL**.
+An advanced, full-stack **AI Resume Analyzer & ATS Screener** built with **Python, Flask, React.js, MySQL, NLP, TF-IDF, and Cosine Similarity**. 
 
----
-
-## 🚀 Features
-
-- **ATS Match Score**: Computes similarity using TF-IDF vectorization and Cosine Similarity combined with domain skill overlap.
-- **NLP Skill Extraction**: Automatically identifies tech and soft skills from both resumes and job descriptions.
-- **Missing Skills & Suggestions**: Identifies skill gaps and provides targeted bullet-point recommendations for the candidate.
-- **Clean Flask REST API**: Beginner-friendly architecture adhering to clear separation of concerns (`database.py`, `validation.py`, `resume_service.py`, `nlp_engine.py`, `app.py`).
-- **MySQL Database Persistence**: Stores analysis reports, matched/missing skills, and timestamps for tracking and historical reference.
-- **Interactive React.js Interface**: Modern UI with real-time score indicators, skill badges, and a past reports history dashboard.
-- **AWS Deployment Ready**: Designed for deployment on AWS (EC2 + RDS MySQL or Elastic Beanstalk).
+The system goes beyond basic keyword counts: it evaluates **career experience alignment (Fresher vs Experienced)**, calculates **realistic ATS match scores**, predicts **shortlisting probabilities**, detects **critical keyword gaps**, and generates **granular requirement breakdown tables with extracted verification proof**.
 
 ---
 
-## 📁 Project Architecture
+## 🌟 Key Features
+
+1. **Experience Alignment & Gap Detection**:
+   - Categorizes candidate level (Fresher / Entry-Level 0 yrs, Junior 1-2 yrs, Mid-Level, Senior 5+ yrs).
+   - Extracts Job Description expectations (e.g. "Requires 5+ years experience").
+   - Identifies candidate-role compatibility: automatically flags experience gaps (e.g., Fresher applying for Senior role) with contextual feedback.
+
+2. **Multi-Dimensional ATS Match Score**:
+   - Combines **TF-IDF Vectorization & Cosine Similarity** with domain skill overlap and experience compatibility penalties.
+   - Outputs a 0–100% composite ATS match score.
+
+3. **Shortlisting Probability Engine**:
+   - Calculates candidate shortlisting probability percentage (e.g. 85%) and qualitative tier (**High**, **Moderate**, **Low**).
+
+4. **Granular Requirement Breakdown**:
+   - Matches individual JD requirements against candidate resume bullet points.
+   - Flags status: `Met`, `Missing`, or `Exceeded` alongside exact extracted quotes from the resume.
+
+5. **Keyword Matrix & Actionable Suggestions**:
+   - Visual chips for Matched Skills vs Missing Skills.
+   - Tailored recommendations to optimize the resume for ATS parsers.
+
+6. **Relational MySQL Database Persistence**:
+   - Stores candidate names, target roles, ATS scores, experience breakdown, skills, and timestamps.
+
+7. **Premium SaaS UI**:
+   - Glassmorphism dark theme, animated metric meters, instant test presets ("Fresher vs Senior Role", "Matched Role"), and MySQL screening history table.
+
+---
+
+## 📁 Architecture Overview
 
 ```
 ai-resume-analyzer/
-│
 ├── backend/
-│   ├── app.py               # Main Flask API routes (GET, POST, DELETE)
-│   ├── database.py          # MySQL connection helper (get_db)
+│   ├── app.py               # Flask REST endpoints (GET, POST, DELETE)
+│   ├── database.py          # MySQL connection pooling (get_db)
 │   ├── validation.py        # Input data validation logic
-│   ├── resume_service.py    # Service logic orchestrating analysis & DB saves
-│   ├── nlp_engine.py        # NLP, TF-IDF vectorization & Cosine Similarity
-│   ├── schema.sql           # MySQL database and table schema
+│   ├── resume_service.py    # Service orchestrating scoring & DB saves
+│   ├── nlp_engine.py        # TF-IDF, Cosine Similarity, Experience Parser
+│   ├── schema.sql           # MySQL database schema (resume_reports table)
 │   ├── requirements.txt     # Python dependencies
-│   └── .env.example         # Environment variables template
-│
+│   └── Dockerfile           # Backend container definition
 ├── frontend/
 │   ├── public/
 │   │   └── index.html       # HTML entry point
 │   ├── src/
-│   │   ├── App.js           # Main React component (Form, Scorecard, History)
-│   │   ├── App.css          # Clean, modern responsive CSS styles
+│   │   ├── App.js           # Premium React UI with Preset Demos & Metric Cards
+│   │   ├── App.css          # Glassmorphism dark styling & responsive tables
 │   │   └── index.js         # React root rendering
-│   └── package.json         # React project dependencies & scripts
-│
-└── README.md                # Project documentation & run guide
+│   └── package.json         # React project dependencies
+├── application.py           # AWS Elastic Beanstalk entry point
+├── aws_setup.sh             # 1-click automated AWS EC2 deployment script
+├── docker-compose.yml       # Multi-container orchestration (MySQL + Backend)
+└── README.md
 ```
 
 ---
 
-## 🛠️ Prerequisites
+## 🚀 Quick Start (Local Setup)
 
-Make sure you have installed:
-1. **Python** (version 3.8+)
-2. **Node.js** (version 16+) and **npm**
-3. **MySQL Server** (local or remote via XAMPP, MySQL Workbench, or Docker)
-
----
-
-## ⚙️ Step 1: Database Setup (MySQL)
-
-1. Open your MySQL client (MySQL Command Line, Workbench, or phpMyAdmin).
-2. Execute the queries inside [backend/schema.sql](file:///C:/Users/samee/.gemini/antigravity/scratch/ai-resume-analyzer/backend/schema.sql):
-
+### 1. Database Setup (MySQL)
+Run the queries inside `backend/schema.sql` in MySQL Workbench or CLI:
 ```sql
 CREATE DATABASE IF NOT EXISTS resume_analyzer_db;
 USE resume_analyzer_db;
-
-CREATE TABLE IF NOT EXISTS resume_reports (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    candidate_name VARCHAR(150) NOT NULL,
-    job_title VARCHAR(150) NOT NULL,
-    match_score DECIMAL(5,2) NOT NULL,
-    matched_skills TEXT,
-    missing_skills TEXT,
-    suggestions TEXT,
-    resume_text LONGTEXT,
-    job_description LONGTEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- (executes table creation for resume_reports)
 ```
 
----
+### 2. Backend Setup (Flask)
+```bash
+cd backend
+python -m venv venv
+# Windows:
+.\venv\Scripts\activate
+# Linux/macOS:
+source venv/bin/activate
 
-## 🐍 Step 2: Backend Setup (Flask)
-
-1. Open a terminal and navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. (Optional but recommended) Create and activate a virtual environment:
-   ```bash
-   # Windows
-   python -m venv venv
-   .\venv\Scripts\activate
-
-   # macOS / Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-
-3. Install required Python packages:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Create your `.env` file from `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
-   Update the MySQL credentials in `.env`:
-   ```env
-   DB_HOST=localhost
-   DB_USER=root
-   DB_PASSWORD=your_mysql_password
-   DB_NAME=resume_analyzer_db
-   DB_PORT=3306
-   ```
-
-5. Run the Flask application:
-   ```bash
-   python app.py
-   ```
-   The Flask server will start at `http://localhost:5000`.
-
----
-
-## ⚛️ Step 3: Frontend Setup (React.js)
-
-1. Open a new terminal and navigate to the frontend folder:
-   ```bash
-   cd frontend
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Start the React development server:
-   ```bash
-   npm start
-   ```
-   The application will open in your browser at `http://localhost:3000`.
-
----
-
-## 🔌 API Endpoints Reference
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/` | API status check |
-| `POST` | `/analyze` | Analyzes resume vs JD, calculates ATS score, and saves to MySQL |
-| `GET` | `/reports` | Retrieves all saved candidate analysis reports |
-| `GET` | `/reports/<id>` | Retrieves a single report by ID |
-| `GET` | `/reports/job/<title>` | Filters reports by job title |
-| `DELETE` | `/reports/<id>` | Deletes an analysis report from MySQL |
-
-### Sample POST `/analyze` Request Body:
-```json
-{
-  "candidate_name": "Alex Mercer",
-  "job_title": "Full Stack Python Developer",
-  "resume_text": "Experienced Python engineer with Flask, React, and MySQL skills...",
-  "job_description": "Seeking Python developer with Flask, React, AWS, Docker, and NLP expertise..."
-}
+pip install -r requirements.txt
+python app.py
 ```
+*API runs at `http://localhost:5000`.*
+
+### 3. Frontend Setup (React.js)
+```bash
+cd frontend
+npm install
+npm start
+```
+*Frontend runs at `http://localhost:3000`.*
 
 ---
 
-## ☁️ AWS Deployment Guide
+## ☁️ AWS Deployment (Elastic Beanstalk / EC2)
 
-To deploy this project on AWS as highlighted in the resume bullet point:
-
-1. **Database (AWS RDS)**:
-   - Create a free-tier MySQL instance on Amazon RDS.
-   - Run `schema.sql` on the RDS endpoint and set the RDS endpoint in your backend `.env`.
-
-2. **Backend (AWS EC2 / Elastic Beanstalk)**:
-   - Launch an Ubuntu EC2 instance.
-   - Install Python, clone the repository, install `requirements.txt`.
-   - Use `gunicorn` with `systemd` or `nginx` reverse proxy to serve the Flask API.
-
-3. **Frontend (AWS S3 + CloudFront / EC2)**:
-   - Run `npm run build` in the `frontend` folder.
-   - Upload the `build` directory to an Amazon S3 bucket configured for static website hosting, fronted by Amazon CloudFront for HTTPS.
+1. **Automated EC2 Script**:
+   ```bash
+   git clone https://github.com/Shaik66-pro/AI-Resume-Analyzer.git
+   cd AI-Resume-Analyzer && bash aws_setup.sh
+   ```
+2. **Elastic Beanstalk**:
+   - Upload `ai-resume-analyzer-aws.zip` directly to your Elastic Beanstalk Python environment.
+   - The environment automatically detects `application.py` and starts the service.
