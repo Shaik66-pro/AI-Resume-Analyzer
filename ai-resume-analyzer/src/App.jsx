@@ -6,6 +6,156 @@ import './App.css'
 // Secure CDN for PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
+// Extensive Skill Taxonomy for Accurate JD & Resume Keyword Extraction
+const SKILL_DATABASE = [
+  // AI & Data
+  "prompt engineering", "data analytics", "sql", "python", "analytical skills", 
+  "machine learning", "deep learning", "nlp", "data analysis", "tableau", "power bi",
+  "tensorflow", "pytorch", "pandas", "numpy", "scikit-learn", "generative ai", "llm",
+  "mysql", "postgresql", "mongodb", "database management", "data visualization",
+  // Full Stack & Web
+  "react", "react.js", "javascript", "typescript", "html", "html5", "css", "css3",
+  "node.js", "express", "flask", "fastapi", "django", "rest api", "apis", "git", "github",
+  // Cloud & DevOps
+  "aws", "docker", "kubernetes", "ci/cd", "linux", "cloud computing"
+];
+
+function analyzeJobAndResume(resumeText, jdText) {
+  const rLower = (resumeText || "").toLowerCase();
+  const jdLower = (jdText || "").toLowerCase();
+
+  // 1. Extract Target Requirements from Job Description
+  const targetSkills = [];
+  SKILL_DATABASE.forEach(skill => {
+    const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+    if (pattern.test(jdLower)) {
+      targetSkills.push(skill);
+    }
+  });
+
+  // Fallback if JD didn't match known DB skills: extract custom capitalized words or lines
+  if (targetSkills.length === 0) {
+    const commonTerms = ["python", "sql", "data analytics", "prompt engineering", "analytical skills"];
+    commonTerms.forEach(t => {
+      if (jdLower.includes(t)) targetSkills.push(t);
+    });
+  }
+
+  // 2. Break Resume into Sentences for Precise Evidence Extraction
+  const resumeSentences = resumeText
+    .split(/(?<=[.!?\n])\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 10);
+
+  const matchedSkills = [];
+  const missingSkills = [];
+  const experienceBreakdown = [];
+
+  targetSkills.forEach(skill => {
+    const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const skillRegex = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+    const isFound = skillRegex.test(rLower);
+
+    if (isFound) {
+      matchedSkills.push(skill);
+      // Find actual sentence from the candidate's resume
+      const matchingSentence = resumeSentences.find(s => skillRegex.test(s)) ||
+        `Hands-on practical experience with ${skill.toUpperCase()} identified in candidate project and skills section.`;
+
+      experienceBreakdown.push({
+        skill: skill.toUpperCase(),
+        required: "Required in JD",
+        found: "Verified in Resume",
+        status: "Met",
+        extractedSentence: matchingSentence.slice(0, 160) + (matchingSentence.length > 160 ? "..." : "")
+      });
+    } else {
+      missingSkills.push(skill);
+      experienceBreakdown.push({
+        skill: skill.toUpperCase(),
+        required: "Required in JD",
+        found: "Missing in Resume",
+        status: "Missing",
+        extractedSentence: `Candidate resume does not mention practical experience with ${skill}. Consider adding relevant projects.`
+      });
+    }
+  });
+
+  // 3. Experience & Batch Analysis (Fresher vs Experienced)
+  const isJdFresher = /fresher|entry[- ]level|0 years|2025|2026|new grad/i.test(jdLower);
+  const jdExpMatch = jdLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)/i);
+  const jdYears = jdExpMatch ? parseInt(jdExpMatch[1], 10) : (isJdFresher ? 0 : 1);
+
+  const isCandidateFresher = /fresher|entry[- ]level|b\.?tech|2025|2026|graduate|student|0 years/i.test(rLower);
+  const candExpMatch = rLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:exp|experience)/i);
+  const candYears = candExpMatch ? parseInt(candExpMatch[1], 10) : (isCandidateFresher ? 0 : 1);
+
+  let careerLevel = isCandidateFresher ? "Fresher / B.Tech Graduate (2025-2026)" : `${candYears}+ Years Experienced Professional`;
+  let totalExpRequired = isJdFresher ? "Fresher (0-1 Yrs)" : `${jdYears}+ Years`;
+  let totalExpFound = isCandidateFresher ? "Fresher / Projects" : `${candYears} Years`;
+
+  let isExperienceMatch = true;
+  let penalty = 0.0;
+  let suitabilityFeedback = "";
+
+  if (jdYears >= 3 && isCandidateFresher) {
+    isExperienceMatch = false;
+    penalty = 0.35;
+    suitabilityFeedback = `Experience Gap: The Job Description requires ${totalExpRequired}, while the candidate is evaluated as a ${careerLevel}. ATS for this role prioritizes senior candidates.`;
+  } else if (isJdFresher && isCandidateFresher) {
+    isExperienceMatch = true;
+    suitabilityFeedback = `Excellent Alignment: The candidate is a ${careerLevel}, perfectly meeting the JD's requirement for ${totalExpRequired}.`;
+  } else {
+    isExperienceMatch = true;
+    suitabilityFeedback = `Good Alignment: Candidate profile (${totalExpFound}) is compatible with the target role requirements (${totalExpRequired}).`;
+  }
+
+  // 4. Calculate Dynamic ATS Score & Shortlist Probability
+  const totalChecked = matchedSkills.length + missingSkills.length;
+  const matchRatio = totalChecked > 0 ? (matchedSkills.length / totalChecked) : 0.5;
+  const baseAts = Math.round((matchRatio * 75 + (isExperienceMatch ? 25 : 5)));
+  const atsScore = Math.min(Math.max(baseAts, 20), 98);
+
+  const calculatedProb = Math.round(atsScore * (1 - penalty));
+  const shortlistProbability = Math.min(Math.max(calculatedProb, 15), 98);
+  const shortlistChance = shortlistProbability >= 75 ? "High" : shortlistProbability >= 50 ? "Moderate" : "Low";
+
+  // 5. Generate Tailored Recommendations
+  const recommendations = [];
+  if (missingSkills.length > 0) {
+    recommendations.push(
+      `Incorporate Target Skills: The JD explicitly mandates [${missingSkills.slice(0, 4).join(", ")}]. Add concrete project bullet points demonstrating hands-on usage.`
+    );
+  }
+  if (!isExperienceMatch) {
+    recommendations.push(
+      `Bridge the Experience Gap: Add production-grade GitHub links or live deployed demos to showcase practical competence beyond formal years of tenure.`
+    );
+  }
+  recommendations.push(
+    "Use Metric-Driven Results: Frame achievements with numbers (e.g. 'Optimized SQL queries by 30%', 'Created 5+ prompt templates')."
+  );
+  recommendations.push(
+    "Align Resume Terminology: Ensure keywords like 'Data Analytics', 'Prompt Engineering', and 'Python' appear in bold under your Skills and Experience sections."
+  );
+
+  return {
+    atsScore,
+    shortlistChance,
+    shortlistProbability,
+    careerLevel,
+    isExperienceMatch,
+    suitabilityFeedback,
+    totalExpRequired,
+    totalExpFound,
+    experienceBreakdown,
+    matchedSkills,
+    missingSkills,
+    recommendations
+  };
+}
+
 function App() {
   const [file, setFile] = useState(null)
   const [jobDescription, setJobDescription] = useState('')
@@ -13,7 +163,6 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState(null)
   const [activeTab, setActiveTab] = useState('experience')
   
-  // You can leave this blank or put any placeholder string now
   const credentials = "";
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -55,104 +204,12 @@ function App() {
     try {
       const resumeText = await extractTextFromPDF(file);
       
-      const prompt = `
-        You are an expert ATS (Applicant Tracking System) and senior technical recruiter. 
-        Analyze the following Resume against the provided Job Description.
-        
-        Job Description:
-        ${jobDescription}
-        
-        Resume Text:
-        ${resumeText}
-        
-        Respond STRICTLY with a valid JSON object matching this exact structure, with no markdown formatting, no code blocks, and no extra text:
-        {
-          "atsScore": number (0-100),
-          "shortlistChance": string ("High", "Moderate", "Low"),
-          "shortlistProbability": number (0-100),
-          "careerLevel": string (e.g., "Entry-Level / Fresher", "Mid-Level", "Senior"),
-          "isExperienceMatch": boolean,
-          "suitabilityFeedback": string (2-3 sentences explaining if their experience level matches the JD),
-          "totalExpRequired": string (e.g., "2+ Years", "None specified"),
-          "totalExpFound": string (e.g., "1 Year", "0 Years"),
-          "experienceBreakdown": [
-            {
-              "skill": string (core requirement from JD),
-              "required": string (years required),
-              "found": string (years found in resume),
-              "status": string ("Met", "Exceeded", "Missing"),
-              "extractedSentence": string (Exact quote from resume proving it, or explanation if missing)
-            }
-          ],
-          "matchedSkills": [array of strings],
-          "missingSkills": [array of strings],
-          "recommendations": [array of 3 actionable improvement strings]
-        }
-      `;
-
-      let aiData = null;
-
-      // Try actual API call if credentials exist and aren't placeholders
-      if (credentials && credentials.length > 10) {
-        const isBearer = credentials.startsWith('AQ.');
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent${isBearer ? '' : `?key=${credentials}`}`;
-        
-        const headers = { 'Content-Type': 'application/json' };
-        if (isBearer) headers['Authorization'] = `Bearer ${credentials}`;
-
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const responseText = data.candidates[0].content.parts[0].text;
-          const cleanJsonStr = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-          aiData = JSON.parse(cleanJsonStr);
-        }
-      }
-
-      // Fallback Simulation Mode if API fails or no key is provided (guarantees zero crashes)
-      if (!aiData) {
-        await new Promise(resolve => setTimeout(resolve, 1500)); // Fake network delay
-        aiData = {
-          atsScore: 88,
-          shortlistChance: "High",
-          shortlistProbability: 92,
-          careerLevel: "Entry-Level / B.Tech Graduate",
-          isExperienceMatch: true,
-          suitabilityFeedback: "The candidate's technical skill set closely aligns with the core requirements of the target role, showing strong full-stack proficiency.",
-          totalExpRequired: "1+ Years",
-          totalExpFound: "1 Year / Projects",
-          experienceBreakdown: [
-            {
-              skill: "React & Modern Frontend",
-              required: "1 Year",
-              found: "1+ Years",
-              status: "Met",
-              extractedSentence: "Developed modern web apps using React, Vite, and JavaScript."
-            },
-            {
-              skill: "API Integration",
-              required: "Basic",
-              found: "Advanced",
-              status: "Exceeded",
-              extractedSentence: "Integrated third-party REST endpoints and handled asynchronous data fetching."
-            }
-          ],
-          matchedSkills: ["React", "JavaScript", "HTML5/CSS3", "Git", "REST APIs"],
-          missingSkills: ["Docker containerization", "AWS cloud deployment"],
-          recommendations: [
-            "Highlight containerization tools like Docker in your project section.",
-            "Include metric-driven bullet points for your e-commerce project.",
-            "Ensure responsive mobile design notes are visible."
-          ]
-        };
-      }
-
-      setAnalysisResult(aiData);
+      // Dynamic High-Precision Resume vs JD Analysis
+      const dynamicResult = analyzeJobAndResume(resumeText, jobDescription);
+      
+      // Artificial delay for smooth UX
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setAnalysisResult(dynamicResult);
 
     } catch (error) {
       console.error("Analysis Error:", error);
@@ -313,7 +370,7 @@ function App() {
               <div className="tab-content">
                 <div className="keywords-grid">
                   <div className="keyword-card success">
-                    <h4>✅ Matched Skills</h4>
+                    <h4>✅ Matched Skills ({analysisResult.matchedSkills?.length})</h4>
                     <div className="tag-cluster">
                       {analysisResult.matchedSkills?.map((s, i) => (
                         <span key={i} className="skill-tag match">{s}</span>
@@ -321,7 +378,7 @@ function App() {
                     </div>
                   </div>
                   <div className="keyword-card warning">
-                    <h4>❌ Missing Criteria from JD</h4>
+                    <h4>❌ Missing Criteria from JD ({analysisResult.missingSkills?.length})</h4>
                     <div className="tag-cluster">
                       {analysisResult.missingSkills?.map((s, i) => (
                         <span key={i} className="skill-tag miss">{s}</span>
@@ -336,7 +393,7 @@ function App() {
             {activeTab === 'recommendations' && (
               <div className="tab-content">
                 <div className="recommendations-box">
-                  <h4>Key Adjustments to Increase Shortlist Chances:</h4>
+                  <h4>Key Adjustments for this Job Description:</h4>
                   <ul>
                     {analysisResult.recommendations?.map((rec, i) => (
                       <li key={i}>{rec}</li>
