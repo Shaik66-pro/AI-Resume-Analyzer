@@ -3,140 +3,262 @@ import { useDropzone } from 'react-dropzone'
 import * as pdfjsLib from 'pdfjs-dist'
 import './App.css'
 
-// Secure CDN for PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-// Comprehensive multi-domain skill dictionary (Web, AI, Cloud, Mobile, QA, Data, Core)
-const COMPREHENSIVE_SKILL_CATALOG = [
-  // Programming Languages
-  "python", "java", "c++", "c#", "c", "javascript", "typescript", "php", "ruby", "golang", "go",
-  "kotlin", "swift", "dart", "r", "scala", "rust", "perl", "bash", "shell", "powershell",
-  // AI, Data Science & Analytics
-  "prompt engineering", "data analytics", "data analysis", "analytical skills", "sql", "mysql",
-  "postgresql", "mongodb", "oracle", "sqlite", "nosql", "redis", "cassandra", "snowflake", "bigquery",
-  "machine learning", "deep learning", "nlp", "natural language processing", "generative ai", "llm", "large language models",
-  "computer vision", "opencv", "tensorflow", "pytorch", "keras", "scikit-learn", "pandas", "numpy", "scipy",
-  "tableau", "power bi", "excel", "data visualization", "data mining", "etl", "spark", "hadoop", "pyspark",
+// Common English words to ignore when extracting custom technical terms from JDs
+const IGNORE_WORDS = new Set([
+  "a", "about", "above", "across", "after", "again", "against", "all", "almost", "alone", "along", "already",
+  "also", "although", "always", "among", "an", "and", "another", "any", "anybody", "anyone", "anything",
+  "anywhere", "are", "area", "areas", "around", "as", "ask", "asked", "asking", "asks", "at", "away", "b",
+  "back", "backed", "backing", "backs", "be", "became", "because", "become", "becomes", "been", "before",
+  "began", "behind", "being", "beings", "best", "better", "between", "big", "both", "but", "by", "c",
+  "came", "can", "cannot", "case", "cases", "certain", "certainly", "clear", "clearly", "come", "could",
+  "did", "differ", "different", "differently", "do", "does", "done", "down", "downed", "downing", "downs",
+  "during", "each", "early", "either", "end", "ended", "ending", "ends", "enough", "even", "evenly", "ever",
+  "every", "everybody", "everyone", "everything", "everywhere", "face", "faces", "fact", "facts", "far",
+  "felt", "few", "fewer", "find", "finds", "first", "for", "four", "from", "full", "fully", "further",
+  "furthered", "furthering", "furthers", "gave", "general", "generally", "get", "gets", "give", "given",
+  "gives", "go", "going", "good", "goods", "got", "great", "greater", "greatest", "group", "grouped",
+  "grouping", "groups", "had", "has", "have", "having", "he", "her", "here", "herself", "high", "higher",
+  "highest", "him", "himself", "his", "how", "however", "if", "important", "important", "in", "interest",
+  "interested", "interesting", "interests", "into", "is", "it", "its", "itself", "just", "keep", "keeps",
+  "knew", "know", "known", "knows", "large", "largely", "last", "later", "latest", "least", "less", "let",
+  "lets", "like", "likely", "made", "make", "makes", "many", "may", "me", "member", "members", "men",
+  "might", "more", "most", "mostly", "mr", "mrs", "much", "must", "my", "myself", "name", "named", "names",
+  "near", "needed", "needing", "needs", "never", "new", "newer", "newest", "next", "no", "nobody", "non",
+  "noone", "not", "nothing", "now", "nowhere", "number", "numbers", "of", "off", "often", "old", "older",
+  "oldest", "on", "once", "one", "only", "open", "opened", "opening", "opens", "or", "order", "ordered",
+  "ordering", "orders", "other", "others", "our", "out", "over", "part", "parted", "parting", "parts",
+  "per", "place", "places", "point", "pointed", "pointing", "points", "possible", "present", "presented",
+  "presenting", "presents", "problem", "problems", "put", "puts", "quite", "rather", "really", "right",
+  "room", "rooms", "said", "same", "saw", "say", "saying", "says", "second", "seconds", "see", "seem",
+  "seemed", "seeming", "seems", "sees", "several", "shall", "she", "should", "show", "showed", "showing",
+  "shows", "side", "sides", "since", "small", "smaller", "smallest", "so", "some", "somebody", "someone",
+  "something", "somewhere", "state", "states", "still", "such", "sure", "take", "taken", "than", "that",
+  "the", "their", "them", "then", "there", "therefore", "these", "they", "thing", "things", "think",
+  "thinks", "this", "those", "though", "thought", "thoughts", "three", "through", "thus", "to", "today",
+  "together", "too", "took", "toward", "turn", "turned", "turning", "turns", "two", "under", "until", "up",
+  "upon", "us", "use", "used", "uses", "very", "want", "wanted", "wanting", "wants", "was", "way", "ways",
+  "we", "well", "wells", "went", "were", "what", "when", "where", "whether", "which", "while", "who",
+  "whole", "whose", "why", "will", "with", "within", "without", "work", "worked", "working", "works",
+  "would", "year", "years", "yet", "you", "young", "younger", "youngest", "your", "yours",
+  "team", "consultants", "equipped", "knowledge", "expertise", "deliver", "solutions", "drive",
+  "broadening", "diverse", "range", "industries", "unique", "challenges", "address", "sector", "faces"
+]);
+
+// Curated technical and domain terms dictionary
+const MASTER_TECH_TERMS = [
+  // Integration & Cloud
+  "mulesoft", "workato", "ipaas", "digital transformation", "data flow", "api integration", "dell boomi",
+  "zapier", "informatica", "kafka", "rabbitmq", "talend", "microservices", "soa",
+  // AI & Data
+  "prompt engineering", "data analytics", "data analysis", "analytical skills", "sql", "mysql", "postgresql",
+  "mongodb", "python", "machine learning", "deep learning", "nlp", "llm", "generative ai", "tableau",
+  "power bi", "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "etl", "data pipeline", "snowflake", "bigquery",
   // Full Stack & Web
-  "react", "react.js", "reactjs", "angular", "vue", "vue.js", "next.js", "node.js", "nodejs", "express", "express.js",
-  "flask", "django", "fastapi", "spring", "spring boot", "asp.net", ".net", "html", "html5", "css", "css3",
-  "tailwind css", "bootstrap", "sass", "redux", "graphql", "rest api", "restful", "rest apis", "microservices",
+  "react", "react.js", "javascript", "typescript", "node.js", "express", "html", "html5", "css", "css3",
+  "flask", "django", "fastapi", "spring boot", "java", "c++", "c#", ".net", "php", "angular", "vue.js", "next.js",
+  "rest api", "graphql", "redux", "tailwind css", "bootstrap",
   // Cloud & DevOps
-  "aws", "amazon web services", "azure", "gcp", "google cloud", "docker", "kubernetes", "k8s",
-  "ci/cd", "ci-cd", "jenkins", "git", "github", "gitlab", "bitbucket", "linux", "unix", "terraform", "ansible",
-  // Mobile & Testing
-  "android", "ios", "flutter", "react native", "selenium", "cypress", "junit", "pytest", "unit testing", "manual testing", "automation testing",
-  // Methodologies & Tools
-  "agile", "scrum", "jira", "postman", "problem solving", "communication skills", "teamwork"
+  "aws", "azure", "gcp", "docker", "kubernetes", "ci/cd", "git", "github", "gitlab", "linux", "terraform",
+  // Testing & Quality
+  "selenium", "manual testing", "automation testing", "postman", "unit testing", "jira", "agile", "scrum"
 ];
 
-// Alias and synonyms mapping for robust ATS matching
-const SKILL_ALIASES = {
-  "react": ["react.js", "reactjs", "react"],
-  "node.js": ["node", "nodejs", "node.js"],
-  "python": ["python", "python3", "python 3"],
-  "sql": ["sql", "mysql", "postgresql", "postgres", "sqlite", "pl/sql", "t-sql"],
-  "prompt engineering": ["prompt engineering", "prompt design", "prompting", "llm prompts", "prompts"],
-  "data analytics": ["data analytics", "data analysis", "data analyst", "analytical skills", "analytics"],
-  "analytical skills": ["analytical skills", "analytical", "problem solving", "data analytics"],
-  "machine learning": ["machine learning", "ml"],
-  "deep learning": ["deep learning", "dl"],
-  "nlp": ["nlp", "natural language processing", "text processing"],
-  "rest api": ["rest api", "rest apis", "restful api", "restful", "apis", "api integration"],
-  "aws": ["aws", "amazon web services", "ec2", "s3"],
-  "docker": ["docker", "containerization", "dockerfile", "containers"],
-  "git": ["git", "github", "gitlab", "version control"]
-};
-
-// Extract skills directly from ANY Job Description text
-function extractSkillsFromJD(jdText) {
+// Extract technical skills dynamically from ANY Job Description
+function extractDynamicJdSkills(jdText) {
   const jdLower = (jdText || "").toLowerCase();
-  const extracted = new Set();
+  const foundSkills = new Set();
 
-  // 1. Look for explicit skill bullet points and comma-separated lists
-  // e.g. "Skills: SQL, Python, Prompt Engineering"
-  const skillSectionMatches = jdText.match(/(?:skills|requirements|technologies|qualifications|must have|competencies|primary skills|secondary skills)[\s:]+([^\n\r]+(?:\n[•\-\*][^\n\r]+)*)/gi);
-  if (skillSectionMatches) {
-    skillSectionMatches.forEach(section => {
-      // Split on commas, semicolons, bullets, and slashes
-      const tokens = section.replace(/^(?:skills|requirements|technologies|qualifications|must have|competencies|primary skills|secondary skills)[\s:]+/i, '')
-        .split(/[,;\n•\-\*\/]/)
-        .map(t => t.trim().toLowerCase())
-        .filter(t => t.length >= 2 && t.length <= 40);
+  // 1. Check master tech terms
+  MASTER_TECH_TERMS.forEach(term => {
+    const escaped = term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+    if (pattern.test(jdLower)) {
+      foundSkills.add(term);
+    }
+  });
 
-      tokens.forEach(token => {
-        // Clean prefixes like "good", "basic", "knowledge of", "experience with"
-        const cleanToken = token.replace(/^(?:good|basic|strong|advanced|solid|hands[- ]on|knowledge of|experience with|proficiency in)\s+/i, '').trim();
-        if (cleanToken.length >= 2) {
-          // Check if matches known catalog or is a clean alphanumeric phrase
-          const matchedCatalog = COMPREHENSIVE_SKILL_CATALOG.find(s => s === cleanToken || cleanToken.includes(s));
-          if (matchedCatalog) {
-            extracted.add(matchedCatalog);
-          } else if (/^[a-z0-9\+\#\.\s]+$/i.test(cleanToken) && cleanToken.split(' ').length <= 3) {
-            extracted.add(cleanToken);
-          }
+  // 2. Parse explicit Skill/Requirement lines: e.g. "Skills: Data Analytics, SQL, Prompt Engineering"
+  const skillLines = jdText.match(/(?:skills|requirements|technologies|tools|knowledge in|experience in)[\s:]+([^\n\r]+)/gi);
+  if (skillLines) {
+    skillLines.forEach(line => {
+      const cleaned = line.replace(/^(?:skills|requirements|technologies|tools|knowledge in|experience in)[\s:]+/i, '');
+      const parts = cleaned.split(/[,;•\-\*\/]/);
+      parts.forEach(p => {
+        let clean = p.trim().toLowerCase();
+        // Remove prefixes like "good", "basic", "knowledge of", "experience with"
+        clean = clean.replace(/^(?:good|basic|strong|hands[- ]on|knowledge of|experience with|proficiency in)\s+/i, '').trim();
+        if (clean.length >= 2 && clean.length <= 35 && !IGNORE_WORDS.has(clean)) {
+          foundSkills.add(clean);
         }
       });
     });
   }
 
-  // 2. Scan entire JD body against comprehensive catalog
-  COMPREHENSIVE_SKILL_CATALOG.forEach(skill => {
-    const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
-    if (pattern.test(jdLower)) {
-      extracted.add(skill);
-    }
-  });
-
-  return Array.from(extracted);
-}
-
-// Check if a skill exists in resume using aliases and word boundaries
-function isSkillInResume(skill, resumeLower) {
-  const aliases = SKILL_ALIASES[skill.toLowerCase()] || [skill.toLowerCase()];
-  return aliases.some(alias => {
-    const escaped = alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
-    return pattern.test(resumeLower);
-  });
-}
-
-// Find the best sentence in resume providing evidence for a skill
-function findEvidenceSentence(skill, resumeSentences) {
-  const aliases = SKILL_ALIASES[skill.toLowerCase()] || [skill.toLowerCase()];
-  for (const sentence of resumeSentences) {
-    const sLower = sentence.toLowerCase();
-    for (const alias of aliases) {
-      const escaped = alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
-      if (pattern.test(sLower)) {
-        return sentence.trim();
+  // 3. Extract prominent capitalized multi-word phrases (e.g. "MuleSoft", "Workato", "Digital Transformation")
+  const capitalizedTerms = jdText.match(/\b[A-Z][a-zA-Z0-9\+\#\.]+(?:\s+[A-Z][a-zA-Z0-9\+\#\.]+)*\b/g);
+  if (capitalizedTerms) {
+    capitalizedTerms.forEach(term => {
+      const tLower = term.trim().toLowerCase();
+      if (tLower.length >= 3 && !IGNORE_WORDS.has(tLower)) {
+        if (MASTER_TECH_TERMS.some(m => m === tLower || tLower.includes(m))) {
+          foundSkills.add(tLower);
+        } else if (term.length >= 4 && !/^(Company|Job|Location|Salary|Experience|Candidate|Eligible|Opening|Position|Notice|Rounds|First|Second|Third|Date|Time|Mode|Round|Total|Batch|Stream|Degree|Bengaluru|Bangalore|Hyderabad|India)$/i.test(term)) {
+          foundSkills.add(tLower);
+        }
       }
-    }
-  }
-  return `Demonstrated knowledge and application of ${skill.toUpperCase()} documented in resume.`;
-}
-
-// Advanced Multi-Domain Universal ATS Engine
-function analyzeJobAndResume(resumeText, jdText) {
-  const rLower = (resumeText || "").toLowerCase();
-  const jdLower = (jdText || "").toLowerCase();
-
-  // 1. Extract Target Requirements from ANY Job Description dynamically
-  let targetSkills = extractSkillsFromJD(jdText);
-
-  // Fallback if JD is extremely brief: grab general top keywords
-  if (targetSkills.length === 0) {
-    COMPREHENSIVE_SKILL_CATALOG.forEach(skill => {
-      if (jdLower.includes(skill)) targetSkills.push(skill);
     });
   }
 
-  // Deduplicate and filter noise
-  targetSkills = Array.from(new Set(targetSkills)).slice(0, 12);
+  // Filter out any single letters or noise words
+  const validSkills = Array.from(foundSkills).filter(s => s.length >= 2 && !IGNORE_WORDS.has(s));
+  return validSkills.slice(0, 10);
+}
 
-  // 2. Break Resume into clean sentences
+// Check if skill exists in resume with alias matching
+function checkSkillInResume(skill, resumeLower) {
+  const s = skill.toLowerCase();
+  
+  // Specific alias checks
+  if (s === "sql") {
+    return /(?<![a-zA-Z0-9])(sql|mysql|postgresql|sqlite|pl\/sql)(?![a-zA-Z0-9])/i.test(resumeLower);
+  }
+  if (s === "python") {
+    return /(?<![a-zA-Z0-9])python(?![a-zA-Z0-9])/i.test(resumeLower);
+  }
+  if (s === "react" || s === "react.js") {
+    return /(?<![a-zA-Z0-9])(react|react\.js|reactjs)(?![a-zA-Z0-9])/i.test(resumeLower);
+  }
+  if (s === "prompt engineering") {
+    return /(?<![a-zA-Z0-9])(prompt engineering|prompt design|llm prompts|prompts)(?![a-zA-Z0-9])/i.test(resumeLower);
+  }
+  if (s === "data analytics" || s === "data analysis") {
+    return /(?<![a-zA-Z0-9])(data analytics|data analysis|analytical skills|data analyst)(?![a-zA-Z0-9])/i.test(resumeLower);
+  }
+
+  const escaped = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  return new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i').test(resumeLower);
+}
+
+// Find actual evidence sentence in candidate resume
+function extractProofSentence(skill, resumeSentences) {
+  const s = skill.toLowerCase();
+  for (const sentence of resumeSentences) {
+    if (checkSkillInResume(s, sentence.toLowerCase())) {
+      return sentence.trim();
+    }
+  }
+  return `Documented practical application of ${skill.toUpperCase()} identified in candidate profile.`;
+}
+
+// Accurately parse Candidate Experience from Resume (Fixing College Degree Date false positives)
+function parseCandidateExperience(resumeText) {
+  const rLower = (resumeText || "").toLowerCase();
+
+  // 1. Explicit Fresher Signals (HIGHEST PRIORITY)
+  const isExplicitFresher = /(?:fresher|entry[- ]level|0 years|zero years|batch of 2025|batch of 2026|graduate in 2025|graduate in 2026|seeking entry[- ]level)/i.test(rLower);
+
+  // 2. Parse Explicit Work Experience (e.g. "Work Experience: 3 Years", "3+ years of professional experience")
+  const workExpMatch = rLower.match(/(?:work experience|professional experience|relevant experience)[\s:]*(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)/i) ||
+                       rLower.match(/(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:work|industry|professional)?\s*experience/i);
+
+  let verifiedYears = 0;
+  if (workExpMatch) {
+    const matchedVal = parseInt(workExpMatch[1], 10);
+    // Ignore absurd values or college year durations if fresher is explicitly stated
+    if (matchedVal > 0 && matchedVal <= 25 && !isExplicitFresher) {
+      verifiedYears = matchedVal;
+    }
+  }
+
+  // 3. Fallback check for Job Roles (Software Engineer at X Company from 2021 to 2024)
+  // Ensure we DO NOT count B.Tech / College / University education dates as work experience!
+  if (verifiedYears === 0 && !isExplicitFresher) {
+    const employmentSection = resumeText.match(/(?:experience|employment|work history|professional background)([\s\S]{50,600})/i);
+    if (employmentSection) {
+      const sectionText = employmentSection[1].toLowerCase();
+      // Only check date range if it doesn't mention college, degree, or university
+      if (!/college|university|institute|b\.?tech|b\.?e|school|education|ssc|intermediate/i.test(sectionText)) {
+        const dateMatch = sectionText.match(/(201\d|202\d)\s*[-–to]\s*(202\d|present|current)/i);
+        if (dateMatch) {
+          const start = parseInt(dateMatch[1], 10);
+          const end = /present|current/i.test(dateMatch[2]) ? 2026 : parseInt(dateMatch[2], 10);
+          const diff = end - start;
+          if (diff > 0 && diff <= 20) {
+            verifiedYears = diff;
+          }
+        }
+      }
+    }
+  }
+
+  if (verifiedYears >= 2 && !isExplicitFresher) {
+    return {
+      isFresher: false,
+      years: verifiedYears,
+      label: `${verifiedYears} Years`,
+      tier: `${verifiedYears}+ Years Experienced Professional`
+    };
+  }
+
+  // Default to Fresher
+  return {
+    isFresher: true,
+    years: 0,
+    label: "Fresher / Projects",
+    tier: "Fresher / Entry-Level (0 Yrs)"
+  };
+}
+
+// Parse Job Description Experience Requirement (ONLY if explicitly mentioned!)
+function parseJdExperienceRequirement(jdText) {
+  const jdLower = (jdText || "").toLowerCase();
+
+  // 1. Check if JD explicitly asks for Fresher
+  if (/(?:fresher|freshers|entry[- ]level|0 years|zero years|2025|2026|new grad|no experience required)/i.test(jdLower)) {
+    return {
+      hasRequirement: true,
+      isFresherRequired: true,
+      requiredYears: 0,
+      label: "Fresher (0 Yrs)",
+      tier: "Entry-Level / Fresher"
+    };
+  }
+
+  // 2. Check if JD explicitly asks for so and so years: e.g. "1 year", "2 years", "3+ years", "5 years"
+  const expMatch = jdLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:exp|experience|relevant)/i) ||
+                   jdLower.match(/(?:experience|exp)[\s:]*(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)/i);
+
+  if (expMatch) {
+    const years = parseInt(expMatch[1], 10);
+    return {
+      hasRequirement: true,
+      isFresherRequired: false,
+      requiredYears: years,
+      label: `${years}+ Years`,
+      tier: years >= 5 ? `Senior Level (${years}+ yrs)` : `Mid-Level (${years}+ yrs)`
+    };
+  }
+
+  // 3. If JD DOES NOT mention experience at all:
+  return {
+    hasRequirement: false,
+    isFresherRequired: false,
+    requiredYears: null,
+    label: "Not Specified in JD",
+    tier: "Experience Not Specified"
+  };
+}
+
+// Master Universal Analysis Function
+function analyzeUniversalResumeAndJd(resumeText, jdText) {
+  const rLower = (resumeText || "").toLowerCase();
+
+  // 1. Parse JD Skills Dynamically
+  const targetSkills = extractDynamicJdSkills(jdText);
+
+  // 2. Break Resume into Sentences
   const resumeSentences = resumeText
     .split(/(?<=[.!?\n])\s+/)
     .map(s => s.trim())
@@ -147,17 +269,16 @@ function analyzeJobAndResume(resumeText, jdText) {
   const experienceBreakdown = [];
 
   targetSkills.forEach(skill => {
-    const found = isSkillInResume(skill, rLower);
-
-    if (found) {
+    const isFound = checkSkillInResume(skill, rLower);
+    if (isFound) {
       matchedSkills.push(skill);
-      const sentence = findEvidenceSentence(skill, resumeSentences);
+      const proof = extractProofSentence(skill, resumeSentences);
       experienceBreakdown.push({
         skill: skill.toUpperCase(),
         required: "Required in JD",
         found: "Verified in Resume",
         status: "Met",
-        extractedSentence: sentence.slice(0, 160) + (sentence.length > 160 ? "..." : "")
+        extractedSentence: proof.slice(0, 160) + (proof.length > 160 ? "..." : "")
       });
     } else {
       missingSkills.push(skill);
@@ -171,86 +292,49 @@ function analyzeJobAndResume(resumeText, jdText) {
     }
   });
 
-  // 3. Real Experience Level Detection (Accurate for Freshers AND Experienced)
-  // Check explicit years mentioned in Resume
-  const expPatterns = [
-    /(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:exp|experience)/i,
-    /experience\s*[:\-]?\s*(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)/i,
-    /(?:worked|working)\s*(?:for)?\s*(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)/i
-  ];
-
-  let detectedCandidateYears = 0;
-  for (const pat of expPatterns) {
-    const match = rLower.match(pat);
-    if (match) {
-      detectedCandidateYears = parseInt(match[1], 10);
-      break;
-    }
-  }
-
-  // Check date ranges like 2021 - 2024 (approx 3 years)
-  const dateRangeMatch = rLower.match(/(201\d|202\d)\s*[-–to]\s*(202\d|present|current)/i);
-  if (dateRangeMatch && detectedCandidateYears === 0) {
-    const startYear = parseInt(dateRangeMatch[1], 10);
-    const endYear = dateRangeMatch[2].toLowerCase().includes('present') || dateRangeMatch[2].toLowerCase().includes('current')
-      ? 2026 : parseInt(dateRangeMatch[2], 10);
-    const diff = endYear - startYear;
-    if (diff > 0 && diff <= 25) {
-      detectedCandidateYears = diff;
-    }
-  }
-
-  // Check Fresher indications
-  const hasFresherKeyword = /fresher|entry[- ]level|0 years|batch of 2025|batch of 2026|graduating in|seeking entry/i.test(rLower);
-  const isCandidateFresher = (detectedCandidateYears === 0) && (hasFresherKeyword || /student|intern/i.test(rLower));
-
-  // Check JD Experience Requirement
-  const isJdFresher = /fresher|entry[- ]level|0 years|2025|2026|new grad|no experience required/i.test(jdLower);
-  const jdExpMatch = jdLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)/i);
-  const jdRequiredYears = jdExpMatch ? parseInt(jdExpMatch[1], 10) : (isJdFresher ? 0 : 1);
-
-  let careerLevel = isCandidateFresher 
-    ? "Fresher / Entry-Level (2025-2026)" 
-    : `${detectedCandidateYears || 1}+ Years Experienced Professional`;
-
-  let totalExpRequired = isJdFresher ? "Fresher (0-1 Yrs)" : `${jdRequiredYears}+ Years`;
-  let totalExpFound = isCandidateFresher ? "Fresher / Projects" : `${detectedCandidateYears || 1} Years`;
+  // 3. Accurate Candidate Experience vs JD Requirement
+  const candidateExp = parseCandidateExperience(resumeText);
+  const jdExp = parseJdExperienceRequirement(jdText);
 
   let isExperienceMatch = true;
   let penalty = 0.0;
   let suitabilityFeedback = "";
 
-  if (jdRequiredYears >= 3 && isCandidateFresher) {
-    isExperienceMatch = false;
-    penalty = 0.35;
-    suitabilityFeedback = `Experience Gap: The Job Description requires ${totalExpRequired}, while the candidate is evaluated as a ${careerLevel}. ATS for this role prioritizes senior candidates.`;
-  } else if (isJdFresher && isCandidateFresher) {
-    isExperienceMatch = true;
-    suitabilityFeedback = `Excellent Alignment: The candidate is a ${careerLevel}, perfectly meeting the JD requirement for ${totalExpRequired}.`;
-  } else if (!isCandidateFresher && detectedCandidateYears >= jdRequiredYears) {
-    isExperienceMatch = true;
-    suitabilityFeedback = `Strong Alignment: Candidate experience (${totalExpFound}) meets or exceeds the target role requirements (${totalExpRequired}).`;
+  if (jdExp.hasRequirement) {
+    if (jdExp.requiredYears >= 3 && candidateExp.isFresher) {
+      isExperienceMatch = false;
+      penalty = 0.35;
+      suitabilityFeedback = `Experience Gap: The Job Description requires ${jdExp.label}, while candidate is evaluated as a ${candidateExp.tier}. ATS screening for this role prioritizes experienced candidates.`;
+    } else if (jdExp.isFresherRequired && candidateExp.isFresher) {
+      isExperienceMatch = true;
+      suitabilityFeedback = `Perfect Experience Match: Both candidate and JD are aligned for Fresher / Entry-Level roles.`;
+    } else if (!candidateExp.isFresher && candidateExp.years >= (jdExp.requiredYears || 0)) {
+      isExperienceMatch = true;
+      suitabilityFeedback = `Strong Alignment: Candidate experience (${candidateExp.label}) satisfies or exceeds role criteria (${jdExp.label}).`;
+    } else {
+      isExperienceMatch = true;
+      suitabilityFeedback = `Role Compatibility: Candidate background aligns with the target role.`;
+    }
   } else {
+    // JD did not specify experience
     isExperienceMatch = true;
-    suitabilityFeedback = `Good Alignment: Candidate profile (${totalExpFound}) is suitable for the ${totalExpRequired} position.`;
+    suitabilityFeedback = `Role Alignment: JD does not mandate a minimum experience tenure. Candidate is evaluated based on matching technical skills.`;
   }
 
-  // 4. Calculate Exact JD Match % and Shortlisting Chance
-  const totalJdSkillsCount = targetSkills.length;
-  const matchedCount = matchedSkills.length;
-  const jdMatchPercentage = totalJdSkillsCount > 0 ? Math.round((matchedCount / totalJdSkillsCount) * 100) : 50;
+  // 4. Accurate JD Match Percentage & Shortlist Probability
+  const totalChecked = targetSkills.length;
+  const matchRatio = totalChecked > 0 ? (matchedSkills.length / totalChecked) : 0.5;
+  const jdMatchPercentage = Math.round(matchRatio * 100);
 
-  // Shortlisting probability merges JD keyword match rate and experience compatibility
   const calculatedProb = Math.round(jdMatchPercentage * (1 - penalty));
   const shortlistProbability = Math.min(Math.max(calculatedProb, 15), 98);
   const shortlistChance = shortlistProbability >= 70 ? "High" : shortlistProbability >= 45 ? "Moderate" : "Low";
-  const atsScore = jdMatchPercentage;
 
-  // 5. Dynamic Tailored Recommendations
+  // 5. Tailored Actionable Recommendations
   const recommendations = [];
   if (missingSkills.length > 0) {
     recommendations.push(
-      `Incorporate Target Skills: The JD explicitly mandates [${missingSkills.slice(0, 4).join(", ")}]. Add concrete project bullet points demonstrating hands-on usage.`
+      `Incorporate Target Skills: The JD requires [${missingSkills.slice(0, 4).join(", ")}]. Add concrete project bullet points demonstrating hands-on usage.`
     );
   }
   if (!isExperienceMatch) {
@@ -259,24 +343,25 @@ function analyzeJobAndResume(resumeText, jdText) {
     );
   }
   recommendations.push(
-    "Use Metric-Driven Results: Frame achievements with numbers (e.g. 'Optimized SQL queries by 30%', 'Created 5+ prompt templates')."
+    "Use Metric-Driven Results: Frame achievements with numbers (e.g. 'Optimized performance by 30%', 'Integrated 5+ core workflows')."
   );
   recommendations.push(
     `Align Resume Terminology: Ensure key terms like [${(matchedSkills.concat(missingSkills)).slice(0, 4).join(", ")}] appear in bold under your Skills and Experience sections.`
   );
 
   return {
-    atsScore,
     jdMatchPercentage,
-    totalJdSkillsCount,
-    matchedCount,
+    totalJdSkillsCount: totalChecked,
+    matchedCount: matchedSkills.length,
     shortlistChance,
     shortlistProbability,
-    careerLevel,
+    careerLevel: candidateExp.tier,
+    jdLevel: jdExp.tier,
     isExperienceMatch,
     suitabilityFeedback,
-    totalExpRequired,
-    totalExpFound,
+    totalExpRequired: jdExp.label,
+    totalExpFound: candidateExp.label,
+    hasJdExpRequirement: jdExp.hasRequirement,
     experienceBreakdown,
     matchedSkills,
     missingSkills,
@@ -287,7 +372,7 @@ function analyzeJobAndResume(resumeText, jdText) {
 function App() {
   const [file, setFile] = useState(null)
   const [resumeTextInput, setResumeTextInput] = useState('')
-  const [inputMode, setInputMode] = useState('pdf') // 'pdf' or 'text'
+  const [inputMode, setInputMode] = useState('pdf')
   const [jobDescription, setJobDescription] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState(null)
@@ -342,7 +427,7 @@ function App() {
       }
 
       // Universal Dynamic Resume vs JD Analysis
-      const dynamicResult = analyzeJobAndResume(finalResumeText, jobDescription);
+      const dynamicResult = analyzeUniversalResumeAndJd(finalResumeText, jobDescription);
       
       await new Promise(resolve => setTimeout(resolve, 600));
       setAnalysisResult(dynamicResult);
