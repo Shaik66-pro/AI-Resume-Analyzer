@@ -34,7 +34,7 @@ function analyzeJobAndResume(resumeText, jdText) {
     }
   });
 
-  // Fallback if JD didn't match known DB skills: extract custom capitalized words or lines
+  // Fallback if JD didn't match known DB skills
   if (targetSkills.length === 0) {
     const commonTerms = ["python", "sql", "data analytics", "prompt engineering", "analytical skills"];
     commonTerms.forEach(t => {
@@ -111,15 +111,16 @@ function analyzeJobAndResume(resumeText, jdText) {
     suitabilityFeedback = `Good Alignment: Candidate profile (${totalExpFound}) is compatible with the target role requirements (${totalExpRequired}).`;
   }
 
-  // 4. Calculate Dynamic ATS Score & Shortlist Probability
-  const totalChecked = matchedSkills.length + missingSkills.length;
-  const matchRatio = totalChecked > 0 ? (matchedSkills.length / totalChecked) : 0.5;
-  const baseAts = Math.round((matchRatio * 75 + (isExperienceMatch ? 25 : 5)));
-  const atsScore = Math.min(Math.max(baseAts, 20), 98);
+  // 4. Calculate Exact JD Match % and Chance of Getting Shortlisted
+  const totalJdSkillsCount = targetSkills.length;
+  const matchedCount = matchedSkills.length;
+  const jdMatchPercentage = totalJdSkillsCount > 0 ? Math.round((matchedCount / totalJdSkillsCount) * 100) : 60;
 
-  const calculatedProb = Math.round(atsScore * (1 - penalty));
+  // Shortlisting Probability incorporates both JD skill match and experience alignment
+  const calculatedProb = Math.round(jdMatchPercentage * (1 - penalty));
   const shortlistProbability = Math.min(Math.max(calculatedProb, 15), 98);
-  const shortlistChance = shortlistProbability >= 75 ? "High" : shortlistProbability >= 50 ? "Moderate" : "Low";
+  const shortlistChance = shortlistProbability >= 70 ? "High" : shortlistProbability >= 45 ? "Moderate" : "Low";
+  const atsScore = jdMatchPercentage;
 
   // 5. Generate Tailored Recommendations
   const recommendations = [];
@@ -142,6 +143,9 @@ function analyzeJobAndResume(resumeText, jdText) {
 
   return {
     atsScore,
+    jdMatchPercentage,
+    totalJdSkillsCount,
+    matchedCount,
     shortlistChance,
     shortlistProbability,
     careerLevel,
@@ -162,8 +166,6 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState(null)
   const [activeTab, setActiveTab] = useState('experience')
-  
-  const credentials = "";
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -207,8 +209,7 @@ function App() {
       // Dynamic High-Precision Resume vs JD Analysis
       const dynamicResult = analyzeJobAndResume(resumeText, jobDescription);
       
-      // Artificial delay for smooth UX
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, 600));
       setAnalysisResult(dynamicResult);
 
     } catch (error) {
@@ -274,6 +275,50 @@ function App() {
         {analysisResult && (
           <div className="dashboard-container glass-panel">
             
+            {/* Top Match Rate & Shortlist Banner */}
+            <div className="jd-match-summary-card glass-panel">
+              <div className="summary-col">
+                <span className="summary-badge">🎯 Job Description Match</span>
+                <div className="summary-metric">
+                  <span className="summary-big-num">{analysisResult.jdMatchPercentage}%</span>
+                  <span className="summary-subtext">
+                    {analysisResult.matchedCount} of {analysisResult.totalJdSkillsCount} Required Skills Found in Resume
+                  </span>
+                </div>
+                <div className="meter-bar" style={{ marginTop: '0.6rem' }}>
+                  <div
+                    className="meter-fill"
+                    style={{ width: `${analysisResult.jdMatchPercentage}%`, backgroundColor: '#00f0ff' }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="summary-col">
+                <span className="summary-badge">📈 Chance of Getting Shortlisted</span>
+                <div className="summary-metric">
+                  <span className={`pill ${analysisResult.shortlistChance?.toLowerCase()} large`}>
+                    {analysisResult.shortlistChance} ({analysisResult.shortlistProbability}%)
+                  </span>
+                  <span className="summary-subtext">
+                    {analysisResult.shortlistChance === 'High' 
+                      ? 'High probability of clearing ATS screening & receiving interview call' 
+                      : analysisResult.shortlistChance === 'Moderate'
+                      ? 'Moderate probability — add missing keywords to increase chances'
+                      : 'Low probability — critical skill gaps or experience mismatch'}
+                  </span>
+                </div>
+                <div className="meter-bar" style={{ marginTop: '0.6rem' }}>
+                  <div
+                    className="meter-fill"
+                    style={{ 
+                      width: `${analysisResult.shortlistProbability}%`,
+                      backgroundColor: analysisResult.shortlistChance === 'High' ? '#4ade80' : analysisResult.shortlistChance === 'Moderate' ? '#facc15' : '#f87171'
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
             {/* Suitability Banner */}
             <div className={`suitability-banner ${analysisResult.isExperienceMatch ? 'match' : 'mismatch'}`}>
               <div className="suitability-header">
@@ -290,8 +335,8 @@ function App() {
             {/* Top Metric Cards */}
             <div className="stats-row">
               <div className="stat-card">
-                <span className="stat-label">ATS Score</span>
-                <span className="stat-value text-accent">{analysisResult.atsScore}%</span>
+                <span className="stat-label">JD Match Score</span>
+                <span className="stat-value text-accent">{analysisResult.jdMatchPercentage}%</span>
               </div>
               <div className="stat-card highlight">
                 <span className="stat-label">Shortlisting Probability</span>
