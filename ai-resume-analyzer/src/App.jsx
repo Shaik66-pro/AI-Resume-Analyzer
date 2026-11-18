@@ -6,69 +6,158 @@ import './App.css'
 // Secure CDN for PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-// Extensive Skill Taxonomy for Accurate JD & Resume Keyword Extraction
-const SKILL_DATABASE = [
-  // AI & Data
-  "prompt engineering", "data analytics", "sql", "python", "analytical skills", 
-  "machine learning", "deep learning", "nlp", "data analysis", "tableau", "power bi",
-  "tensorflow", "pytorch", "pandas", "numpy", "scikit-learn", "generative ai", "llm",
-  "mysql", "postgresql", "mongodb", "database management", "data visualization",
+// Comprehensive multi-domain skill dictionary (Web, AI, Cloud, Mobile, QA, Data, Core)
+const COMPREHENSIVE_SKILL_CATALOG = [
+  // Programming Languages
+  "python", "java", "c++", "c#", "c", "javascript", "typescript", "php", "ruby", "golang", "go",
+  "kotlin", "swift", "dart", "r", "scala", "rust", "perl", "bash", "shell", "powershell",
+  // AI, Data Science & Analytics
+  "prompt engineering", "data analytics", "data analysis", "analytical skills", "sql", "mysql",
+  "postgresql", "mongodb", "oracle", "sqlite", "nosql", "redis", "cassandra", "snowflake", "bigquery",
+  "machine learning", "deep learning", "nlp", "natural language processing", "generative ai", "llm", "large language models",
+  "computer vision", "opencv", "tensorflow", "pytorch", "keras", "scikit-learn", "pandas", "numpy", "scipy",
+  "tableau", "power bi", "excel", "data visualization", "data mining", "etl", "spark", "hadoop", "pyspark",
   // Full Stack & Web
-  "react", "react.js", "javascript", "typescript", "html", "html5", "css", "css3",
-  "node.js", "express", "flask", "fastapi", "django", "rest api", "apis", "git", "github",
+  "react", "react.js", "reactjs", "angular", "vue", "vue.js", "next.js", "node.js", "nodejs", "express", "express.js",
+  "flask", "django", "fastapi", "spring", "spring boot", "asp.net", ".net", "html", "html5", "css", "css3",
+  "tailwind css", "bootstrap", "sass", "redux", "graphql", "rest api", "restful", "rest apis", "microservices",
   // Cloud & DevOps
-  "aws", "docker", "kubernetes", "ci/cd", "linux", "cloud computing"
+  "aws", "amazon web services", "azure", "gcp", "google cloud", "docker", "kubernetes", "k8s",
+  "ci/cd", "ci-cd", "jenkins", "git", "github", "gitlab", "bitbucket", "linux", "unix", "terraform", "ansible",
+  // Mobile & Testing
+  "android", "ios", "flutter", "react native", "selenium", "cypress", "junit", "pytest", "unit testing", "manual testing", "automation testing",
+  // Methodologies & Tools
+  "agile", "scrum", "jira", "postman", "problem solving", "communication skills", "teamwork"
 ];
 
+// Alias and synonyms mapping for robust ATS matching
+const SKILL_ALIASES = {
+  "react": ["react.js", "reactjs", "react"],
+  "node.js": ["node", "nodejs", "node.js"],
+  "python": ["python", "python3", "python 3"],
+  "sql": ["sql", "mysql", "postgresql", "postgres", "sqlite", "pl/sql", "t-sql"],
+  "prompt engineering": ["prompt engineering", "prompt design", "prompting", "llm prompts", "prompts"],
+  "data analytics": ["data analytics", "data analysis", "data analyst", "analytical skills", "analytics"],
+  "analytical skills": ["analytical skills", "analytical", "problem solving", "data analytics"],
+  "machine learning": ["machine learning", "ml"],
+  "deep learning": ["deep learning", "dl"],
+  "nlp": ["nlp", "natural language processing", "text processing"],
+  "rest api": ["rest api", "rest apis", "restful api", "restful", "apis", "api integration"],
+  "aws": ["aws", "amazon web services", "ec2", "s3"],
+  "docker": ["docker", "containerization", "dockerfile", "containers"],
+  "git": ["git", "github", "gitlab", "version control"]
+};
+
+// Extract skills directly from ANY Job Description text
+function extractSkillsFromJD(jdText) {
+  const jdLower = (jdText || "").toLowerCase();
+  const extracted = new Set();
+
+  // 1. Look for explicit skill bullet points and comma-separated lists
+  // e.g. "Skills: SQL, Python, Prompt Engineering"
+  const skillSectionMatches = jdText.match(/(?:skills|requirements|technologies|qualifications|must have|competencies|primary skills|secondary skills)[\s:]+([^\n\r]+(?:\n[•\-\*][^\n\r]+)*)/gi);
+  if (skillSectionMatches) {
+    skillSectionMatches.forEach(section => {
+      // Split on commas, semicolons, bullets, and slashes
+      const tokens = section.replace(/^(?:skills|requirements|technologies|qualifications|must have|competencies|primary skills|secondary skills)[\s:]+/i, '')
+        .split(/[,;\n•\-\*\/]/)
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length >= 2 && t.length <= 40);
+
+      tokens.forEach(token => {
+        // Clean prefixes like "good", "basic", "knowledge of", "experience with"
+        const cleanToken = token.replace(/^(?:good|basic|strong|advanced|solid|hands[- ]on|knowledge of|experience with|proficiency in)\s+/i, '').trim();
+        if (cleanToken.length >= 2) {
+          // Check if matches known catalog or is a clean alphanumeric phrase
+          const matchedCatalog = COMPREHENSIVE_SKILL_CATALOG.find(s => s === cleanToken || cleanToken.includes(s));
+          if (matchedCatalog) {
+            extracted.add(matchedCatalog);
+          } else if (/^[a-z0-9\+\#\.\s]+$/i.test(cleanToken) && cleanToken.split(' ').length <= 3) {
+            extracted.add(cleanToken);
+          }
+        }
+      });
+    });
+  }
+
+  // 2. Scan entire JD body against comprehensive catalog
+  COMPREHENSIVE_SKILL_CATALOG.forEach(skill => {
+    const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+    if (pattern.test(jdLower)) {
+      extracted.add(skill);
+    }
+  });
+
+  return Array.from(extracted);
+}
+
+// Check if a skill exists in resume using aliases and word boundaries
+function isSkillInResume(skill, resumeLower) {
+  const aliases = SKILL_ALIASES[skill.toLowerCase()] || [skill.toLowerCase()];
+  return aliases.some(alias => {
+    const escaped = alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+    return pattern.test(resumeLower);
+  });
+}
+
+// Find the best sentence in resume providing evidence for a skill
+function findEvidenceSentence(skill, resumeSentences) {
+  const aliases = SKILL_ALIASES[skill.toLowerCase()] || [skill.toLowerCase()];
+  for (const sentence of resumeSentences) {
+    const sLower = sentence.toLowerCase();
+    for (const alias of aliases) {
+      const escaped = alias.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
+      if (pattern.test(sLower)) {
+        return sentence.trim();
+      }
+    }
+  }
+  return `Demonstrated knowledge and application of ${skill.toUpperCase()} documented in resume.`;
+}
+
+// Advanced Multi-Domain Universal ATS Engine
 function analyzeJobAndResume(resumeText, jdText) {
   const rLower = (resumeText || "").toLowerCase();
   const jdLower = (jdText || "").toLowerCase();
 
-  // 1. Extract Target Requirements from Job Description
-  const targetSkills = [];
-  SKILL_DATABASE.forEach(skill => {
-    const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
-    if (pattern.test(jdLower)) {
-      targetSkills.push(skill);
-    }
-  });
+  // 1. Extract Target Requirements from ANY Job Description dynamically
+  let targetSkills = extractSkillsFromJD(jdText);
 
-  // Fallback if JD didn't match known DB skills
+  // Fallback if JD is extremely brief: grab general top keywords
   if (targetSkills.length === 0) {
-    const commonTerms = ["python", "sql", "data analytics", "prompt engineering", "analytical skills"];
-    commonTerms.forEach(t => {
-      if (jdLower.includes(t)) targetSkills.push(t);
+    COMPREHENSIVE_SKILL_CATALOG.forEach(skill => {
+      if (jdLower.includes(skill)) targetSkills.push(skill);
     });
   }
 
-  // 2. Break Resume into Sentences for Precise Evidence Extraction
+  // Deduplicate and filter noise
+  targetSkills = Array.from(new Set(targetSkills)).slice(0, 12);
+
+  // 2. Break Resume into clean sentences
   const resumeSentences = resumeText
     .split(/(?<=[.!?\n])\s+/)
     .map(s => s.trim())
-    .filter(s => s.length > 10);
+    .filter(s => s.length > 8);
 
   const matchedSkills = [];
   const missingSkills = [];
   const experienceBreakdown = [];
 
   targetSkills.forEach(skill => {
-    const escaped = skill.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const skillRegex = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
-    const isFound = skillRegex.test(rLower);
+    const found = isSkillInResume(skill, rLower);
 
-    if (isFound) {
+    if (found) {
       matchedSkills.push(skill);
-      // Find actual sentence from the candidate's resume
-      const matchingSentence = resumeSentences.find(s => skillRegex.test(s)) ||
-        `Hands-on practical experience with ${skill.toUpperCase()} identified in candidate project and skills section.`;
-
+      const sentence = findEvidenceSentence(skill, resumeSentences);
       experienceBreakdown.push({
         skill: skill.toUpperCase(),
         required: "Required in JD",
         found: "Verified in Resume",
         status: "Met",
-        extractedSentence: matchingSentence.slice(0, 160) + (matchingSentence.length > 160 ? "..." : "")
+        extractedSentence: sentence.slice(0, 160) + (sentence.length > 160 ? "..." : "")
       });
     } else {
       missingSkills.push(skill);
@@ -77,52 +166,87 @@ function analyzeJobAndResume(resumeText, jdText) {
         required: "Required in JD",
         found: "Missing in Resume",
         status: "Missing",
-        extractedSentence: `Candidate resume does not mention practical experience with ${skill}. Consider adding relevant projects.`
+        extractedSentence: `Candidate resume does not mention practical experience with ${skill.toUpperCase()}. Consider adding relevant projects.`
       });
     }
   });
 
-  // 3. Experience & Batch Analysis (Fresher vs Experienced)
-  const isJdFresher = /fresher|entry[- ]level|0 years|2025|2026|new grad/i.test(jdLower);
+  // 3. Real Experience Level Detection (Accurate for Freshers AND Experienced)
+  // Check explicit years mentioned in Resume
+  const expPatterns = [
+    /(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:exp|experience)/i,
+    /experience\s*[:\-]?\s*(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)/i,
+    /(?:worked|working)\s*(?:for)?\s*(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)/i
+  ];
+
+  let detectedCandidateYears = 0;
+  for (const pat of expPatterns) {
+    const match = rLower.match(pat);
+    if (match) {
+      detectedCandidateYears = parseInt(match[1], 10);
+      break;
+    }
+  }
+
+  // Check date ranges like 2021 - 2024 (approx 3 years)
+  const dateRangeMatch = rLower.match(/(201\d|202\d)\s*[-–to]\s*(202\d|present|current)/i);
+  if (dateRangeMatch && detectedCandidateYears === 0) {
+    const startYear = parseInt(dateRangeMatch[1], 10);
+    const endYear = dateRangeMatch[2].toLowerCase().includes('present') || dateRangeMatch[2].toLowerCase().includes('current')
+      ? 2026 : parseInt(dateRangeMatch[2], 10);
+    const diff = endYear - startYear;
+    if (diff > 0 && diff <= 25) {
+      detectedCandidateYears = diff;
+    }
+  }
+
+  // Check Fresher indications
+  const hasFresherKeyword = /fresher|entry[- ]level|0 years|batch of 2025|batch of 2026|graduating in|seeking entry/i.test(rLower);
+  const isCandidateFresher = (detectedCandidateYears === 0) && (hasFresherKeyword || /student|intern/i.test(rLower));
+
+  // Check JD Experience Requirement
+  const isJdFresher = /fresher|entry[- ]level|0 years|2025|2026|new grad|no experience required/i.test(jdLower);
   const jdExpMatch = jdLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)/i);
-  const jdYears = jdExpMatch ? parseInt(jdExpMatch[1], 10) : (isJdFresher ? 0 : 1);
+  const jdRequiredYears = jdExpMatch ? parseInt(jdExpMatch[1], 10) : (isJdFresher ? 0 : 1);
 
-  const isCandidateFresher = /fresher|entry[- ]level|b\.?tech|2025|2026|graduate|student|0 years/i.test(rLower);
-  const candExpMatch = rLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:exp|experience)/i);
-  const candYears = candExpMatch ? parseInt(candExpMatch[1], 10) : (isCandidateFresher ? 0 : 1);
+  let careerLevel = isCandidateFresher 
+    ? "Fresher / Entry-Level (2025-2026)" 
+    : `${detectedCandidateYears || 1}+ Years Experienced Professional`;
 
-  let careerLevel = isCandidateFresher ? "Fresher / B.Tech Graduate (2025-2026)" : `${candYears}+ Years Experienced Professional`;
-  let totalExpRequired = isJdFresher ? "Fresher (0-1 Yrs)" : `${jdYears}+ Years`;
-  let totalExpFound = isCandidateFresher ? "Fresher / Projects" : `${candYears} Years`;
+  let totalExpRequired = isJdFresher ? "Fresher (0-1 Yrs)" : `${jdRequiredYears}+ Years`;
+  let totalExpFound = isCandidateFresher ? "Fresher / Projects" : `${detectedCandidateYears || 1} Years`;
 
   let isExperienceMatch = true;
   let penalty = 0.0;
   let suitabilityFeedback = "";
 
-  if (jdYears >= 3 && isCandidateFresher) {
+  if (jdRequiredYears >= 3 && isCandidateFresher) {
     isExperienceMatch = false;
     penalty = 0.35;
     suitabilityFeedback = `Experience Gap: The Job Description requires ${totalExpRequired}, while the candidate is evaluated as a ${careerLevel}. ATS for this role prioritizes senior candidates.`;
   } else if (isJdFresher && isCandidateFresher) {
     isExperienceMatch = true;
-    suitabilityFeedback = `Excellent Alignment: The candidate is a ${careerLevel}, perfectly meeting the JD's requirement for ${totalExpRequired}.`;
+    suitabilityFeedback = `Excellent Alignment: The candidate is a ${careerLevel}, perfectly meeting the JD requirement for ${totalExpRequired}.`;
+  } else if (!isCandidateFresher && detectedCandidateYears >= jdRequiredYears) {
+    isExperienceMatch = true;
+    suitabilityFeedback = `Strong Alignment: Candidate experience (${totalExpFound}) meets or exceeds the target role requirements (${totalExpRequired}).`;
   } else {
     isExperienceMatch = true;
-    suitabilityFeedback = `Good Alignment: Candidate profile (${totalExpFound}) is compatible with the target role requirements (${totalExpRequired}).`;
+    suitabilityFeedback = `Good Alignment: Candidate profile (${totalExpFound}) is suitable for the ${totalExpRequired} position.`;
   }
 
-  // 4. Calculate Exact JD Match % and Chance of Getting Shortlisted
+  // 4. Calculate Exact JD Match % and Shortlisting Chance
   const totalJdSkillsCount = targetSkills.length;
   const matchedCount = matchedSkills.length;
-  const jdMatchPercentage = totalJdSkillsCount > 0 ? Math.round((matchedCount / totalJdSkillsCount) * 100) : 60;
+  const jdMatchPercentage = totalJdSkillsCount > 0 ? Math.round((matchedCount / totalJdSkillsCount) * 100) : 50;
 
-  // Shortlisting Probability incorporates both JD skill match and experience alignment
+  // Shortlisting probability merges JD keyword match rate and experience compatibility
   const calculatedProb = Math.round(jdMatchPercentage * (1 - penalty));
   const shortlistProbability = Math.min(Math.max(calculatedProb, 15), 98);
   const shortlistChance = shortlistProbability >= 70 ? "High" : shortlistProbability >= 45 ? "Moderate" : "Low";
   const atsScore = jdMatchPercentage;
 
-  // 5. Generate Tailored Recommendations
+  // 5. Dynamic Tailored Recommendations
   const recommendations = [];
   if (missingSkills.length > 0) {
     recommendations.push(
@@ -138,7 +262,7 @@ function analyzeJobAndResume(resumeText, jdText) {
     "Use Metric-Driven Results: Frame achievements with numbers (e.g. 'Optimized SQL queries by 30%', 'Created 5+ prompt templates')."
   );
   recommendations.push(
-    "Align Resume Terminology: Ensure keywords like 'Data Analytics', 'Prompt Engineering', and 'Python' appear in bold under your Skills and Experience sections."
+    `Align Resume Terminology: Ensure key terms like [${(matchedSkills.concat(missingSkills)).slice(0, 4).join(", ")}] appear in bold under your Skills and Experience sections.`
   );
 
   return {
@@ -162,6 +286,8 @@ function analyzeJobAndResume(resumeText, jdText) {
 
 function App() {
   const [file, setFile] = useState(null)
+  const [resumeTextInput, setResumeTextInput] = useState('')
+  const [inputMode, setInputMode] = useState('pdf') // 'pdf' or 'text'
   const [jobDescription, setJobDescription] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState(null)
@@ -191,8 +317,12 @@ function App() {
   }
 
   const handleAnalyze = async () => {
-    if (!file) {
-      alert("Please upload a resume first.");
+    if (inputMode === 'pdf' && !file) {
+      alert("Please upload a resume (PDF) first or switch to Paste Text mode.");
+      return;
+    }
+    if (inputMode === 'text' && !resumeTextInput.trim()) {
+      alert("Please paste your resume text first.");
       return;
     }
     if (!jobDescription.trim()) {
@@ -204,10 +334,15 @@ function App() {
     setAnalysisResult(null);
 
     try {
-      const resumeText = await extractTextFromPDF(file);
-      
-      // Dynamic High-Precision Resume vs JD Analysis
-      const dynamicResult = analyzeJobAndResume(resumeText, jobDescription);
+      let finalResumeText = '';
+      if (inputMode === 'pdf' && file) {
+        finalResumeText = await extractTextFromPDF(file);
+      } else {
+        finalResumeText = resumeTextInput;
+      }
+
+      // Universal Dynamic Resume vs JD Analysis
+      const dynamicResult = analyzeJobAndResume(finalResumeText, jobDescription);
       
       await new Promise(resolve => setTimeout(resolve, 600));
       setAnalysisResult(dynamicResult);
@@ -228,36 +363,70 @@ function App() {
       </header>
 
       <main className="main-content">
-        <div {...getRootProps()} className={`dropzone glass-panel ${isDragActive ? 'active' : ''}`}>
-          <input {...getInputProps()} />
-          {isDragActive ? (
-            <p>Drop the PDF here...</p>
-          ) : (
-            <p>Drag & drop your resume (PDF) here, or click to browse</p>
-          )}
+        {/* Toggle between Upload PDF and Paste Text */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
+          <button
+            type="button"
+            className={`tab-btn ${inputMode === 'pdf' ? 'active' : ''}`}
+            onClick={() => setInputMode('pdf')}
+          >
+            📁 Upload Resume (PDF)
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${inputMode === 'text' ? 'active' : ''}`}
+            onClick={() => setInputMode('text')}
+          >
+            📝 Paste Resume Text
+          </button>
         </div>
 
-        {file && (
-          <div className="file-badge glass-panel">
-            <span>📄 {file.name}</span>
-            <button
-              className="remove-btn"
-              onClick={() => {
-                setFile(null)
-                setAnalysisResult(null)
-              }}
-            >
-              ✕
-            </button>
+        {inputMode === 'pdf' ? (
+          <>
+            <div {...getRootProps()} className={`dropzone glass-panel ${isDragActive ? 'active' : ''}`}>
+              <input {...getInputProps()} />
+              {isDragActive ? (
+                <p>Drop the PDF here...</p>
+              ) : (
+                <p>Drag & drop your resume (PDF) here, or click to browse</p>
+              )}
+            </div>
+
+            {file && (
+              <div className="file-badge glass-panel">
+                <span>📄 {file.name}</span>
+                <button
+                  className="remove-btn"
+                  onClick={() => {
+                    setFile(null)
+                    setAnalysisResult(null)
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="jd-section">
+            <label htmlFor="resumeText">Paste Candidate Resume Content:</label>
+            <textarea
+              id="resumeText"
+              rows="6"
+              placeholder="Paste candidate resume content, skills, work experience, and projects here..."
+              value={resumeTextInput}
+              onChange={(e) => setResumeTextInput(e.target.value)}
+              className="glass-panel"
+            />
           </div>
         )}
 
-        <div className="jd-section">
+        <div className="jd-section" style={{ marginTop: '1rem' }}>
           <label htmlFor="jd">Target Job Description (JD):</label>
           <textarea
             id="jd"
-            rows="5"
-            placeholder="Paste target job requirements and experience criteria here..."
+            rows="6"
+            placeholder="Paste target job requirements, skills, and experience criteria here..."
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
             className="glass-panel"
@@ -267,7 +436,7 @@ function App() {
         <button
           className="analyze-btn glass-panel"
           onClick={handleAnalyze}
-          disabled={!file || isAnalyzing}
+          disabled={isAnalyzing || (inputMode === 'pdf' && !file) || (inputMode === 'text' && !resumeTextInput.trim())}
         >
           {isAnalyzing ? 'Analyzing Experience & ATS Fit...' : 'Analyze Resume'}
         </button>
