@@ -5,367 +5,278 @@ import './App.css'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
-// Common English words to ignore when extracting custom technical terms from JDs
-const IGNORE_WORDS = new Set([
-  "a", "about", "above", "across", "after", "again", "against", "all", "almost", "alone", "along", "already",
-  "also", "although", "always", "among", "an", "and", "another", "any", "anybody", "anyone", "anything",
-  "anywhere", "are", "area", "areas", "around", "as", "ask", "asked", "asking", "asks", "at", "away", "b",
-  "back", "backed", "backing", "backs", "be", "became", "because", "become", "becomes", "been", "before",
-  "began", "behind", "being", "beings", "best", "better", "between", "big", "both", "but", "by", "c",
-  "came", "can", "cannot", "case", "cases", "certain", "certainly", "clear", "clearly", "come", "could",
-  "did", "differ", "different", "differently", "do", "does", "done", "down", "downed", "downing", "downs",
-  "during", "each", "early", "either", "end", "ended", "ending", "ends", "enough", "even", "evenly", "ever",
-  "every", "everybody", "everyone", "everything", "everywhere", "face", "faces", "fact", "facts", "far",
-  "felt", "few", "fewer", "find", "finds", "first", "for", "four", "from", "full", "fully", "further",
-  "furthered", "furthering", "furthers", "gave", "general", "generally", "get", "gets", "give", "given",
-  "gives", "go", "going", "good", "goods", "got", "great", "greater", "greatest", "group", "grouped",
-  "grouping", "groups", "had", "has", "have", "having", "he", "her", "here", "herself", "high", "higher",
-  "highest", "him", "himself", "his", "how", "however", "if", "important", "important", "in", "interest",
-  "interested", "interesting", "interests", "into", "is", "it", "its", "itself", "just", "keep", "keeps",
-  "knew", "know", "known", "knows", "large", "largely", "last", "later", "latest", "least", "less", "let",
-  "lets", "like", "likely", "made", "make", "makes", "many", "may", "me", "member", "members", "men",
-  "might", "more", "most", "mostly", "mr", "mrs", "much", "must", "my", "myself", "name", "named", "names",
-  "near", "needed", "needing", "needs", "never", "new", "newer", "newest", "next", "no", "nobody", "non",
-  "noone", "not", "nothing", "now", "nowhere", "number", "numbers", "of", "off", "often", "old", "older",
-  "oldest", "on", "once", "one", "only", "open", "opened", "opening", "opens", "or", "order", "ordered",
-  "ordering", "orders", "other", "others", "our", "out", "over", "part", "parted", "parting", "parts",
-  "per", "place", "places", "point", "pointed", "pointing", "points", "possible", "present", "presented",
-  "presenting", "presents", "problem", "problems", "put", "puts", "quite", "rather", "really", "right",
-  "room", "rooms", "said", "same", "saw", "say", "saying", "says", "second", "seconds", "see", "seem",
-  "seemed", "seeming", "seems", "sees", "several", "shall", "she", "should", "show", "showed", "showing",
-  "shows", "side", "sides", "since", "small", "smaller", "smallest", "so", "some", "somebody", "someone",
-  "something", "somewhere", "state", "states", "still", "such", "sure", "take", "taken", "than", "that",
-  "the", "their", "them", "then", "there", "therefore", "these", "they", "thing", "things", "think",
-  "thinks", "this", "those", "though", "thought", "thoughts", "three", "through", "thus", "to", "today",
-  "together", "too", "took", "toward", "turn", "turned", "turning", "turns", "two", "under", "until", "up",
-  "upon", "us", "use", "used", "uses", "very", "want", "wanted", "wanting", "wants", "was", "way", "ways",
-  "we", "well", "wells", "went", "were", "what", "when", "where", "whether", "which", "while", "who",
-  "whole", "whose", "why", "will", "with", "within", "without", "work", "worked", "working", "works",
-  "would", "year", "years", "yet", "you", "young", "younger", "youngest", "your", "yours",
-  "team", "consultants", "equipped", "knowledge", "expertise", "deliver", "solutions", "drive",
-  "broadening", "diverse", "range", "industries", "unique", "challenges", "address", "sector", "faces"
-]);
-
-// Curated technical and domain terms dictionary
-const MASTER_TECH_TERMS = [
-  // Integration & Cloud
-  "mulesoft", "workato", "ipaas", "digital transformation", "data flow", "api integration", "dell boomi",
-  "zapier", "informatica", "kafka", "rabbitmq", "talend", "microservices", "soa",
-  // AI & Data
-  "prompt engineering", "data analytics", "data analysis", "analytical skills", "sql", "mysql", "postgresql",
-  "mongodb", "python", "machine learning", "deep learning", "nlp", "llm", "generative ai", "tableau",
-  "power bi", "pandas", "numpy", "scikit-learn", "tensorflow", "pytorch", "etl", "data pipeline", "snowflake", "bigquery",
-  // Full Stack & Web
-  "react", "react.js", "javascript", "typescript", "node.js", "express", "html", "html5", "css", "css3",
-  "flask", "django", "fastapi", "spring boot", "java", "c++", "c#", ".net", "php", "angular", "vue.js", "next.js",
-  "rest api", "graphql", "redux", "tailwind css", "bootstrap",
-  // Cloud & DevOps
-  "aws", "azure", "gcp", "docker", "kubernetes", "ci/cd", "git", "github", "gitlab", "linux", "terraform",
-  // Testing & Quality
-  "selenium", "manual testing", "automation testing", "postman", "unit testing", "jira", "agile", "scrum"
+// Broad technical dictionary for keyword normalization
+const TECH_DICTIONARY = [
+  "python", "sql", "data analytics", "data analysis", "prompt engineering", "analytical skills",
+  "mysql", "postgresql", "mongodb", "database", "machine learning", "deep learning", "nlp",
+  "generative ai", "llm", "tableau", "power bi", "excel", "pandas", "numpy", "scikit-learn",
+  "react", "react.js", "javascript", "typescript", "html", "css", "node.js", "express",
+  "flask", "django", "fastapi", "spring boot", "java", "c++", "c#", ".net", "rest api",
+  "aws", "azure", "gcp", "docker", "kubernetes", "ci/cd", "git", "github", "linux",
+  "mulesoft", "workato", "ipaas", "digital transformation", "data flow", "api integration",
+  "selenium", "manual testing", "automation testing", "jira", "agile"
 ];
 
-// Extract technical skills dynamically from ANY Job Description
-function extractDynamicJdSkills(jdText) {
-  const jdLower = (jdText || "").toLowerCase();
-  const foundSkills = new Set();
-
-  // 1. Check master tech terms
-  MASTER_TECH_TERMS.forEach(term => {
-    const escaped = term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    const pattern = new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i');
-    if (pattern.test(jdLower)) {
-      foundSkills.add(term);
-    }
-  });
-
-  // 2. Parse explicit Skill/Requirement lines: e.g. "Skills: Data Analytics, SQL, Prompt Engineering"
-  const skillLines = jdText.match(/(?:skills|requirements|technologies|tools|knowledge in|experience in)[\s:]+([^\n\r]+)/gi);
-  if (skillLines) {
-    skillLines.forEach(line => {
-      const cleaned = line.replace(/^(?:skills|requirements|technologies|tools|knowledge in|experience in)[\s:]+/i, '');
-      const parts = cleaned.split(/[,;•\-\*\/]/);
-      parts.forEach(p => {
-        let clean = p.trim().toLowerCase();
-        // Remove prefixes like "good", "basic", "knowledge of", "experience with"
-        clean = clean.replace(/^(?:good|basic|strong|hands[- ]on|knowledge of|experience with|proficiency in)\s+/i, '').trim();
-        if (clean.length >= 2 && clean.length <= 35 && !IGNORE_WORDS.has(clean)) {
-          foundSkills.add(clean);
-        }
-      });
-    });
-  }
-
-  // 3. Extract prominent capitalized multi-word phrases (e.g. "MuleSoft", "Workato", "Digital Transformation")
-  const capitalizedTerms = jdText.match(/\b[A-Z][a-zA-Z0-9\+\#\.]+(?:\s+[A-Z][a-zA-Z0-9\+\#\.]+)*\b/g);
-  if (capitalizedTerms) {
-    capitalizedTerms.forEach(term => {
-      const tLower = term.trim().toLowerCase();
-      if (tLower.length >= 3 && !IGNORE_WORDS.has(tLower)) {
-        if (MASTER_TECH_TERMS.some(m => m === tLower || tLower.includes(m))) {
-          foundSkills.add(tLower);
-        } else if (term.length >= 4 && !/^(Company|Job|Location|Salary|Experience|Candidate|Eligible|Opening|Position|Notice|Rounds|First|Second|Third|Date|Time|Mode|Round|Total|Batch|Stream|Degree|Bengaluru|Bangalore|Hyderabad|India)$/i.test(term)) {
-          foundSkills.add(tLower);
-        }
-      }
-    });
-  }
-
-  // Filter out any single letters or noise words
-  const validSkills = Array.from(foundSkills).filter(s => s.length >= 2 && !IGNORE_WORDS.has(s));
-  return validSkills.slice(0, 10);
-}
-
-// Check if skill exists in resume with alias matching
-function checkSkillInResume(skill, resumeLower) {
-  const s = skill.toLowerCase();
-  
-  // Specific alias checks
+// Normalize and match skill against text
+function textContainsSkill(textLower, skill) {
+  const s = skill.toLowerCase().trim();
   if (s === "sql") {
-    return /(?<![a-zA-Z0-9])(sql|mysql|postgresql|sqlite|pl\/sql)(?![a-zA-Z0-9])/i.test(resumeLower);
+    return /(?<![a-zA-Z0-9])(sql|mysql|postgresql|sqlite|pl\/sql)(?![a-zA-Z0-9])/i.test(textLower);
   }
   if (s === "python") {
-    return /(?<![a-zA-Z0-9])python(?![a-zA-Z0-9])/i.test(resumeLower);
-  }
-  if (s === "react" || s === "react.js") {
-    return /(?<![a-zA-Z0-9])(react|react\.js|reactjs)(?![a-zA-Z0-9])/i.test(resumeLower);
+    return /(?<![a-zA-Z0-9])python(?![a-zA-Z0-9])/i.test(textLower);
   }
   if (s === "prompt engineering") {
-    return /(?<![a-zA-Z0-9])(prompt engineering|prompt design|llm prompts|prompts)(?![a-zA-Z0-9])/i.test(resumeLower);
+    return /(?<![a-zA-Z0-9])(prompt engineering|prompt design|llm prompts|prompts)(?![a-zA-Z0-9])/i.test(textLower);
   }
-  if (s === "data analytics" || s === "data analysis") {
-    return /(?<![a-zA-Z0-9])(data analytics|data analysis|analytical skills|data analyst)(?![a-zA-Z0-9])/i.test(resumeLower);
+  if (s === "data analytics" || s === "data analysis" || s === "dataanalytics") {
+    return /(?<![a-zA-Z0-9])(data analytics|data analysis|analytical skills|data analyst)(?![a-zA-Z0-9])/i.test(textLower);
   }
-
+  if (s === "analytical skills") {
+    return /(?<![a-zA-Z0-9])(analytical skills|analytical|problem solving|data analytics)(?![a-zA-Z0-9])/i.test(textLower);
+  }
   const escaped = s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-  return new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i').test(resumeLower);
+  return new RegExp(`(?<![a-zA-Z0-9])${escaped}(?![a-zA-Z0-9])`, 'i').test(textLower);
 }
 
-// Find actual evidence sentence in candidate resume
-function extractProofSentence(skill, resumeSentences) {
-  const s = skill.toLowerCase();
-  for (const sentence of resumeSentences) {
-    if (checkSkillInResume(s, sentence.toLowerCase())) {
-      return sentence.trim();
+// Extract specific lines/sections from Job Description text
+function parseJdSections(jdText) {
+  const lines = jdText.split(/[\r\n]+/);
+  
+  let targetRole = "";
+  let primarySkillsRaw = [];
+  let secondarySkillsRaw = [];
+  let minQualRaw = [];
+  let prefQualRaw = [];
+
+  let currentSection = "";
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+
+    // Detect Target Role / Designation
+    const roleMatch = trimmed.match(/(?:designation|position|job title|role)[\s:]+(.+)/i);
+    if (roleMatch && !targetRole) {
+      targetRole = roleMatch[1].trim();
+      return;
     }
-  }
-  return `Documented practical application of ${skill.toUpperCase()} identified in candidate profile.`;
-}
 
-// Accurately parse Candidate Experience from Resume (Fixing College Degree Date false positives)
-function parseCandidateExperience(resumeText) {
-  const rLower = (resumeText || "").toLowerCase();
-
-  // 1. Explicit Fresher Signals (HIGHEST PRIORITY)
-  const isExplicitFresher = /(?:fresher|entry[- ]level|0 years|zero years|batch of 2025|batch of 2026|graduate in 2025|graduate in 2026|seeking entry[- ]level)/i.test(rLower);
-
-  // 2. Parse Explicit Work Experience (e.g. "Work Experience: 3 Years", "3+ years of professional experience")
-  const workExpMatch = rLower.match(/(?:work experience|professional experience|relevant experience)[\s:]*(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)/i) ||
-                       rLower.match(/(\d{1,2})\s*\+?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:work|industry|professional)?\s*experience/i);
-
-  let verifiedYears = 0;
-  if (workExpMatch) {
-    const matchedVal = parseInt(workExpMatch[1], 10);
-    // Ignore absurd values or college year durations if fresher is explicitly stated
-    if (matchedVal > 0 && matchedVal <= 25 && !isExplicitFresher) {
-      verifiedYears = matchedVal;
+    // Detect Section Headers
+    if (/^(?:primary skills?|core skills?|mandatory skills?|must[- ]have skills?)/i.test(trimmed)) {
+      currentSection = "primary";
+      const inline = trimmed.replace(/^(?:primary skills?|core skills?|mandatory skills?|must[- ]have skills?)[\s:]*/i, '');
+      if (inline) primarySkillsRaw.push(inline);
+      return;
     }
-  }
 
-  // 3. Fallback check for Job Roles (Software Engineer at X Company from 2021 to 2024)
-  // Ensure we DO NOT count B.Tech / College / University education dates as work experience!
-  if (verifiedYears === 0 && !isExplicitFresher) {
-    const employmentSection = resumeText.match(/(?:experience|employment|work history|professional background)([\s\S]{50,600})/i);
-    if (employmentSection) {
-      const sectionText = employmentSection[1].toLowerCase();
-      // Only check date range if it doesn't mention college, degree, or university
-      if (!/college|university|institute|b\.?tech|b\.?e|school|education|ssc|intermediate/i.test(sectionText)) {
-        const dateMatch = sectionText.match(/(201\d|202\d)\s*[-–to]\s*(202\d|present|current)/i);
-        if (dateMatch) {
-          const start = parseInt(dateMatch[1], 10);
-          const end = /present|current/i.test(dateMatch[2]) ? 2026 : parseInt(dateMatch[2], 10);
-          const diff = end - start;
-          if (diff > 0 && diff <= 20) {
-            verifiedYears = diff;
-          }
-        }
-      }
+    if (/^(?:secondary skills?|preferred skills?|good to have|nice to have|additional skills?)/i.test(trimmed)) {
+      currentSection = "secondary";
+      const inline = trimmed.replace(/^(?:secondary skills?|preferred skills?|good to have|nice to have|additional skills?)[\s:]*/i, '');
+      if (inline) secondarySkillsRaw.push(inline);
+      return;
     }
-  }
 
-  if (verifiedYears >= 2 && !isExplicitFresher) {
-    return {
-      isFresher: false,
-      years: verifiedYears,
-      label: `${verifiedYears} Years`,
-      tier: `${verifiedYears}+ Years Experienced Professional`
-    };
-  }
+    if (/^(?:minimum qualifications?|eligibility criteria?|eligibility|education|qualification)/i.test(trimmed)) {
+      currentSection = "minQual";
+      const inline = trimmed.replace(/^(?:minimum qualifications?|eligibility criteria?|eligibility|education|qualification)[\s:]*/i, '');
+      if (inline) minQualRaw.push(inline);
+      return;
+    }
 
-  // Default to Fresher
-  return {
-    isFresher: true,
-    years: 0,
-    label: "Fresher / Projects",
-    tier: "Fresher / Entry-Level (0 Yrs)"
-  };
-}
+    if (/^(?:preferred qualifications?|desired qualifications?)/i.test(trimmed)) {
+      currentSection = "prefQual";
+      const inline = trimmed.replace(/^(?:preferred qualifications?|desired qualifications?)[\s:]*/i, '');
+      if (inline) prefQualRaw.push(inline);
+      return;
+    }
 
-// Parse Job Description Experience Requirement (ONLY if explicitly mentioned!)
-function parseJdExperienceRequirement(jdText) {
-  const jdLower = (jdText || "").toLowerCase();
+    if (/^(?:technical skills required|skills required|skills)[\s:]*/i.test(trimmed)) {
+      if (!currentSection) currentSection = "primary";
+      const inline = trimmed.replace(/^(?:technical skills required|skills required|skills)[\s:]*/i, '');
+      if (inline) primarySkillsRaw.push(inline);
+      return;
+    }
 
-  // 1. Check if JD explicitly asks for Fresher
-  if (/(?:fresher|freshers|entry[- ]level|0 years|zero years|2025|2026|new grad|no experience required)/i.test(jdLower)) {
-    return {
-      hasRequirement: true,
-      isFresherRequired: true,
-      requiredYears: 0,
-      label: "Fresher (0 Yrs)",
-      tier: "Entry-Level / Fresher"
-    };
-  }
-
-  // 2. Check if JD explicitly asks for so and so years: e.g. "1 year", "2 years", "3+ years", "5 years"
-  const expMatch = jdLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)\s*(?:of)?\s*(?:exp|experience|relevant)/i) ||
-                   jdLower.match(/(?:experience|exp)[\s:]*(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)/i);
-
-  if (expMatch) {
-    const years = parseInt(expMatch[1], 10);
-    return {
-      hasRequirement: true,
-      isFresherRequired: false,
-      requiredYears: years,
-      label: `${years}+ Years`,
-      tier: years >= 5 ? `Senior Level (${years}+ yrs)` : `Mid-Level (${years}+ yrs)`
-    };
-  }
-
-  // 3. If JD DOES NOT mention experience at all:
-  return {
-    hasRequirement: false,
-    isFresherRequired: false,
-    requiredYears: null,
-    label: "Not Specified in JD",
-    tier: "Experience Not Specified"
-  };
-}
-
-// Master Universal Analysis Function
-function analyzeUniversalResumeAndJd(resumeText, jdText) {
-  const rLower = (resumeText || "").toLowerCase();
-
-  // 1. Parse JD Skills Dynamically
-  const targetSkills = extractDynamicJdSkills(jdText);
-
-  // 2. Break Resume into Sentences
-  const resumeSentences = resumeText
-    .split(/(?<=[.!?\n])\s+/)
-    .map(s => s.trim())
-    .filter(s => s.length > 8);
-
-  const matchedSkills = [];
-  const missingSkills = [];
-  const experienceBreakdown = [];
-
-  targetSkills.forEach(skill => {
-    const isFound = checkSkillInResume(skill, rLower);
-    if (isFound) {
-      matchedSkills.push(skill);
-      const proof = extractProofSentence(skill, resumeSentences);
-      experienceBreakdown.push({
-        skill: skill.toUpperCase(),
-        required: "Required in JD",
-        found: "Verified in Resume",
-        status: "Met",
-        extractedSentence: proof.slice(0, 160) + (proof.length > 160 ? "..." : "")
-      });
-    } else {
-      missingSkills.push(skill);
-      experienceBreakdown.push({
-        skill: skill.toUpperCase(),
-        required: "Required in JD",
-        found: "Missing in Resume",
-        status: "Missing",
-        extractedSentence: `Candidate resume does not mention practical experience with ${skill.toUpperCase()}. Consider adding relevant projects.`
-      });
+    // Capture content under the active section
+    if (currentSection === "primary") {
+      primarySkillsRaw.push(trimmed);
+    } else if (currentSection === "secondary") {
+      secondarySkillsRaw.push(trimmed);
+    } else if (currentSection === "minQual") {
+      minQualRaw.push(trimmed);
+    } else if (currentSection === "prefQual") {
+      prefQualRaw.push(trimmed);
     }
   });
 
-  // 3. Accurate Candidate Experience vs JD Requirement
-  const candidateExp = parseCandidateExperience(resumeText);
-  const jdExp = parseJdExperienceRequirement(jdText);
+  // Helper to split and clean tokens from raw strings
+  const cleanTokens = (rawArr) => {
+    const tokens = [];
+    rawArr.join(" ").split(/[,;\n•\-\*\/]/).forEach(item => {
+      let t = item.trim().toLowerCase();
+      // Clean prefixes
+      t = t.replace(/^(?:good|basic|strong|hands[- ]on|knowledge of|experience in|proficiency in)\s+/i, '').trim();
+      if (t.length >= 2 && !/^(skills|location|bangalore|hyd|candidates|note|work|details)$/i.test(t)) {
+        tokens.push(t);
+      }
+    });
+    return Array.from(new Set(tokens));
+  };
 
-  let isExperienceMatch = true;
-  let penalty = 0.0;
-  let suitabilityFeedback = "";
+  let primarySkills = cleanTokens(primarySkillsRaw);
+  let secondarySkills = cleanTokens(secondarySkillsRaw);
 
-  if (jdExp.hasRequirement) {
-    if (jdExp.requiredYears >= 3 && candidateExp.isFresher) {
-      isExperienceMatch = false;
-      penalty = 0.35;
-      suitabilityFeedback = `Experience Gap: The Job Description requires ${jdExp.label}, while candidate is evaluated as a ${candidateExp.tier}. ATS screening for this role prioritizes experienced candidates.`;
-    } else if (jdExp.isFresherRequired && candidateExp.isFresher) {
-      isExperienceMatch = true;
-      suitabilityFeedback = `Perfect Experience Match: Both candidate and JD are aligned for Fresher / Entry-Level roles.`;
-    } else if (!candidateExp.isFresher && candidateExp.years >= (jdExp.requiredYears || 0)) {
-      isExperienceMatch = true;
-      suitabilityFeedback = `Strong Alignment: Candidate experience (${candidateExp.label}) satisfies or exceeds role criteria (${jdExp.label}).`;
+  // If no explicit primary/secondary tags were provided, extract automatically from entire JD text
+  if (primarySkills.length === 0 && secondarySkills.length === 0) {
+    const jdLower = jdText.toLowerCase();
+    const allFound = TECH_DICTIONARY.filter(tech => textContainsSkill(jdLower, tech));
+    // Split first half as primary, remainder as secondary
+    primarySkills = allFound.slice(0, Math.ceil(allFound.length * 0.6));
+    secondarySkills = allFound.slice(Math.ceil(allFound.length * 0.6));
+  }
+
+  // Deduplicate between primary and secondary
+  secondarySkills = secondarySkills.filter(s => !primarySkills.includes(s));
+
+  return {
+    targetRole: targetRole || "Designation as specified in JD",
+    primarySkills,
+    secondarySkills,
+    minQualText: minQualRaw.join(" "),
+    prefQualText: prefQualRaw.join(" ")
+  };
+}
+
+// Master ATS Targeted Evaluation
+function evaluateResumeAgainstJd(resumeText, jdText) {
+  const rLower = (resumeText || "").toLowerCase();
+  const jdLower = (jdText || "").toLowerCase();
+
+  // 1. Parse JD Sections
+  const { targetRole, primarySkills, secondarySkills, minQualText, prefQualText } = parseJdSections(jdText);
+
+  // 2. Evaluate Primary Skills (Mandatory)
+  const matchedPrimary = [];
+  const missingPrimary = [];
+  primarySkills.forEach(skill => {
+    if (textContainsSkill(rLower, skill)) {
+      matchedPrimary.push(skill);
     } else {
-      isExperienceMatch = true;
-      suitabilityFeedback = `Role Compatibility: Candidate background aligns with the target role.`;
+      missingPrimary.push(skill);
     }
+  });
+
+  // 3. Evaluate Secondary Skills (Preferred / Bonus)
+  const matchedSecondary = [];
+  const missingSecondary = [];
+  secondarySkills.forEach(skill => {
+    if (textContainsSkill(rLower, skill)) {
+      matchedSecondary.push(skill);
+    } else {
+      missingSecondary.push(skill);
+    }
+  });
+
+  // 4. Minimum Qualifications Check (Degree, Batch, Experience)
+  // Education Check
+  const jdRequiresDegree = /b\.?tech|b\.?e|m\.?tech|m\.?e|bachelor|master|mca|degree/i.test(jdLower);
+  const resumeHasDegree = /b\.?tech|b\.?e|m\.?tech|m\.?e|bachelor|master|mca|degree|computer science|engineering/i.test(rLower);
+  const educationStatus = jdRequiresDegree ? (resumeHasDegree ? "MET" : "NOT SPECIFIED") : "NOT SPECIFIED IN JD";
+
+  // Experience Check (ONLY if JD mentions it)
+  const jdExpMatch = jdLower.match(/(\d{1,2})\s*\+?\s*(?:to\s*(\d{1,2}))?\s*(?:years|year|yrs|yr)/i);
+  const jdIsFresher = /fresher|entry[- ]level|0 years|2025|2026/i.test(jdLower);
+  
+  let jdExpLabel = "Not Specified in JD";
+  let expStatus = "N/A";
+
+  if (jdIsFresher) {
+    jdExpLabel = "Fresher (0 Yrs)";
+    // Check if candidate is fresher
+    const candidateIsFresher = /fresher|entry[- ]level|0 years|batch of 2025|batch of 2026|student/i.test(rLower) ||
+                               !/(?:work experience|experience)[\s:]*[2-9]\s*\+?\s*years/i.test(rLower);
+    expStatus = candidateIsFresher ? "MET (Candidate is Fresher)" : "EXPERIENCED";
+  } else if (jdExpMatch) {
+    const requiredYears = parseInt(jdExpMatch[1], 10);
+    jdExpLabel = `${requiredYears}+ Years`;
+    const candYearsMatch = rLower.match(/(?:work experience|experience)[\s:]*(\d{1,2})\s*\+?\s*years/i);
+    const candYears = candYearsMatch ? parseInt(candYearsMatch[1], 10) : 0;
+    expStatus = candYears >= requiredYears ? "MET" : `GAP (${candYears} yrs vs ${requiredYears} required)`;
+  }
+
+  // 5. Target Role Compatibility Verdict
+  const totalPrimary = primarySkills.length;
+  const primaryMatchRatio = totalPrimary > 0 ? (matchedPrimary.length / totalPrimary) : 0.6;
+  
+  let roleVerdict = "MATCHED";
+  let verdictColor = "#4ade80"; // Green
+  let verdictSummary = "";
+
+  if (primaryMatchRatio >= 0.75 && (expStatus.startsWith("MET") || expStatus === "N/A")) {
+    roleVerdict = "✅ HIGH MATCH FOR TARGET ROLE";
+    verdictColor = "#4ade80";
+    verdictSummary = `Your profile aligns strongly with the ${targetRole} requirements. Core primary skills are well-represented.`;
+  } else if (primaryMatchRatio >= 0.40) {
+    roleVerdict = "⚠️ PARTIAL MATCH FOR TARGET ROLE";
+    verdictColor = "#facc15";
+    verdictSummary = `Your profile has a partial match. You satisfy ${matchedPrimary.length} of ${totalPrimary} primary skills, but addressing the missing primary skills is crucial for shortlisting.`;
   } else {
-    // JD did not specify experience
-    isExperienceMatch = true;
-    suitabilityFeedback = `Role Alignment: JD does not mandate a minimum experience tenure. Candidate is evaluated based on matching technical skills.`;
+    roleVerdict = "❌ LOW MATCH FOR TARGET ROLE";
+    verdictColor = "#f87171";
+    verdictSummary = `Significant skill gaps detected for this ${targetRole} role. Most primary skills required by the recruiter are absent.`;
   }
 
-  // 4. Accurate JD Match Percentage & Shortlist Probability
-  const totalChecked = targetSkills.length;
-  const matchRatio = totalChecked > 0 ? (matchedSkills.length / totalChecked) : 0.5;
-  const jdMatchPercentage = Math.round(matchRatio * 100);
+  // Exact Match Percentage
+  const allJdSkills = primarySkills.concat(secondarySkills);
+  const totalSkillsCount = allJdSkills.length;
+  const matchedTotalCount = matchedPrimary.length + matchedSecondary.length;
+  const matchPercentage = totalSkillsCount > 0 ? Math.round((matchedTotalCount / totalSkillsCount) * 100) : 50;
 
-  const calculatedProb = Math.round(jdMatchPercentage * (1 - penalty));
-  const shortlistProbability = Math.min(Math.max(calculatedProb, 15), 98);
-  const shortlistChance = shortlistProbability >= 70 ? "High" : shortlistProbability >= 45 ? "Moderate" : "Low";
+  // Shortlist Probability
+  let probCalc = Math.round(primaryMatchRatio * 70 + (matchedSecondary.length > 0 ? 15 : 5) + (educationStatus === "MET" ? 15 : 10));
+  const shortlistProbability = Math.min(Math.max(probCalc, 15), 98);
+  const shortlistChance = shortlistProbability >= 70 ? "HIGH" : shortlistProbability >= 45 ? "MODERATE" : "LOW";
 
-  // 5. Tailored Actionable Recommendations
-  const recommendations = [];
-  if (missingSkills.length > 0) {
-    recommendations.push(
-      `Incorporate Target Skills: The JD requires [${missingSkills.slice(0, 4).join(", ")}]. Add concrete project bullet points demonstrating hands-on usage.`
+  // 6. Actionable AI Improvement Tips (Direct & Clear)
+  const improvementTips = [];
+  if (missingPrimary.length > 0) {
+    improvementTips.push(
+      `Add Missing Primary Skills: The recruiter marked [${missingPrimary.join(", ").toUpperCase()}] as mandatory. Add these keywords in your Technical Skills section and mention how you used them in your projects.`
     );
   }
-  if (!isExperienceMatch) {
-    recommendations.push(
-      `Bridge the Experience Gap: Add production-grade GitHub links or live deployed demos to showcase practical competence beyond formal years of tenure.`
+  if (missingSecondary.length > 0) {
+    improvementTips.push(
+      `Incorporate Secondary Skills for Competitive Edge: Add [${missingSecondary.join(", ").toUpperCase()}] to stand out over other applicants.`
     );
   }
-  recommendations.push(
-    "Use Metric-Driven Results: Frame achievements with numbers (e.g. 'Optimized performance by 30%', 'Integrated 5+ core workflows')."
-  );
-  recommendations.push(
-    `Align Resume Terminology: Ensure key terms like [${(matchedSkills.concat(missingSkills)).slice(0, 4).join(", ")}] appear in bold under your Skills and Experience sections.`
+  if (educationStatus === "MET") {
+    improvementTips.push(
+      `Eligibility Verified: Your education meets the JD's minimum criteria (${jdRequiresDegree ? "B.Tech/Degree" : "Specified"}). Ensure your graduation batch (e.g. 2025/2026) is highlighted prominently.`
+    );
+  }
+  improvementTips.push(
+    `Align Resume Heading: Update your resume headline to match the target role "${targetRole}" to instantly pass ATS keyword filters.`
   );
 
   return {
-    jdMatchPercentage,
-    totalJdSkillsCount: totalChecked,
-    matchedCount: matchedSkills.length,
+    targetRole,
+    matchPercentage,
     shortlistChance,
     shortlistProbability,
-    careerLevel: candidateExp.tier,
-    jdLevel: jdExp.tier,
-    isExperienceMatch,
-    suitabilityFeedback,
-    totalExpRequired: jdExp.label,
-    totalExpFound: candidateExp.label,
-    hasJdExpRequirement: jdExp.hasRequirement,
-    experienceBreakdown,
-    matchedSkills,
-    missingSkills,
-    recommendations
+    roleVerdict,
+    verdictColor,
+    verdictSummary,
+    primarySkills,
+    matchedPrimary,
+    missingPrimary,
+    secondarySkills,
+    matchedSecondary,
+    missingSecondary,
+    educationStatus,
+    jdExpLabel,
+    expStatus,
+    improvementTips
   };
 }
 
@@ -375,15 +286,14 @@ function App() {
   const [inputMode, setInputMode] = useState('pdf')
   const [jobDescription, setJobDescription] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState(null)
-  const [activeTab, setActiveTab] = useState('experience')
+  const [result, setResult] = useState(null)
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
     maxFiles: 1,
     onDrop: (acceptedFiles) => {
       setFile(acceptedFiles[0])
-      setAnalysisResult(null)
+      setResult(null)
     }
   })
 
@@ -391,7 +301,6 @@ function App() {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     let fullText = '';
-    
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const textContent = await page.getTextContent();
@@ -403,7 +312,7 @@ function App() {
 
   const handleAnalyze = async () => {
     if (inputMode === 'pdf' && !file) {
-      alert("Please upload a resume (PDF) first or switch to Paste Text mode.");
+      alert("Please upload your resume (PDF) first.");
       return;
     }
     if (inputMode === 'text' && !resumeTextInput.trim()) {
@@ -411,12 +320,12 @@ function App() {
       return;
     }
     if (!jobDescription.trim()) {
-      alert("Please paste a Job Description.");
+      alert("Please paste the Job Description.");
       return;
     }
 
     setIsAnalyzing(true);
-    setAnalysisResult(null);
+    setResult(null);
 
     try {
       let finalResumeText = '';
@@ -426,15 +335,13 @@ function App() {
         finalResumeText = resumeTextInput;
       }
 
-      // Universal Dynamic Resume vs JD Analysis
-      const dynamicResult = analyzeUniversalResumeAndJd(finalResumeText, jobDescription);
-      
-      await new Promise(resolve => setTimeout(resolve, 600));
-      setAnalysisResult(dynamicResult);
+      const evalResult = evaluateResumeAgainstJd(finalResumeText, jobDescription);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setResult(evalResult);
 
     } catch (error) {
-      console.error("Analysis Error:", error);
-      alert("Error processing resume: " + error.message);
+      console.error("Evaluation Error:", error);
+      alert("Error evaluating resume: " + error.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -444,11 +351,11 @@ function App() {
     <div className="container">
       <header className="glass-panel">
         <h1>AI Resume Analyzer</h1>
-        <p>Smart ATS parsing, experience verification & shortlisting probability</p>
+        <p>Smart ATS Parsing & Shortlisting Probability</p>
       </header>
 
       <main className="main-content">
-        {/* Toggle between Upload PDF and Paste Text */}
+        {/* Input Mode Switch */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '1.25rem' }}>
           <button
             type="button"
@@ -484,7 +391,7 @@ function App() {
                   className="remove-btn"
                   onClick={() => {
                     setFile(null)
-                    setAnalysisResult(null)
+                    setResult(null)
                   }}
                 >
                   ✕
@@ -494,11 +401,11 @@ function App() {
           </>
         ) : (
           <div className="jd-section">
-            <label htmlFor="resumeText">Paste Candidate Resume Content:</label>
+            <label htmlFor="resumeText">Candidate Resume Content:</label>
             <textarea
               id="resumeText"
               rows="6"
-              placeholder="Paste candidate resume content, skills, work experience, and projects here..."
+              placeholder="Paste candidate resume skills, education, and experience..."
               value={resumeTextInput}
               onChange={(e) => setResumeTextInput(e.target.value)}
               className="glass-panel"
@@ -511,7 +418,7 @@ function App() {
           <textarea
             id="jd"
             rows="6"
-            placeholder="Paste target job requirements, skills, and experience criteria here..."
+            placeholder="Paste Job Description with Primary Skills, Secondary Skills, and Qualifications..."
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
             className="glass-panel"
@@ -523,184 +430,151 @@ function App() {
           onClick={handleAnalyze}
           disabled={isAnalyzing || (inputMode === 'pdf' && !file) || (inputMode === 'text' && !resumeTextInput.trim())}
         >
-          {isAnalyzing ? 'Analyzing Experience & ATS Fit...' : 'Analyze Resume'}
+          {isAnalyzing ? 'Matching Skills & Qualifications...' : 'Evaluate Match against JD'}
         </button>
 
-        {analysisResult && (
+        {result && (
           <div className="dashboard-container glass-panel">
             
-            {/* Top Match Rate & Shortlist Banner */}
-            <div className="jd-match-summary-card glass-panel">
-              <div className="summary-col">
-                <span className="summary-badge">🎯 Job Description Match</span>
-                <div className="summary-metric">
-                  <span className="summary-big-num">{analysisResult.jdMatchPercentage}%</span>
-                  <span className="summary-subtext">
-                    {analysisResult.matchedCount} of {analysisResult.totalJdSkillsCount} Required Skills Found in Resume
+            {/* 1. Target Role Compatibility Banner */}
+            <div className="target-role-verdict-box" style={{ borderLeft: `6px solid ${result.verdictColor}` }}>
+              <div className="verdict-header">
+                <div>
+                  <span className="verdict-badge" style={{ color: result.verdictColor }}>
+                    {result.roleVerdict}
                   </span>
+                  <h2 style={{ fontSize: '1.3rem', marginTop: '0.4rem', color: '#fff' }}>
+                    Target Role: {result.targetRole}
+                  </h2>
                 </div>
-                <div className="meter-bar" style={{ marginTop: '0.6rem' }}>
-                  <div
-                    className="meter-fill"
-                    style={{ width: `${analysisResult.jdMatchPercentage}%`, backgroundColor: '#00f0ff' }}
-                  ></div>
-                </div>
-              </div>
-
-              <div className="summary-col">
-                <span className="summary-badge">📈 Chance of Getting Shortlisted</span>
-                <div className="summary-metric">
-                  <span className={`pill ${analysisResult.shortlistChance?.toLowerCase()} large`}>
-                    {analysisResult.shortlistChance} ({analysisResult.shortlistProbability}%)
-                  </span>
-                  <span className="summary-subtext">
-                    {analysisResult.shortlistChance === 'High' 
-                      ? 'High probability of clearing ATS screening & receiving interview call' 
-                      : analysisResult.shortlistChance === 'Moderate'
-                      ? 'Moderate probability — add missing keywords to increase chances'
-                      : 'Low probability — critical skill gaps or experience mismatch'}
-                  </span>
-                </div>
-                <div className="meter-bar" style={{ marginTop: '0.6rem' }}>
-                  <div
-                    className="meter-fill"
-                    style={{ 
-                      width: `${analysisResult.shortlistProbability}%`,
-                      backgroundColor: analysisResult.shortlistChance === 'High' ? '#4ade80' : analysisResult.shortlistChance === 'Moderate' ? '#facc15' : '#f87171'
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Suitability Banner */}
-            <div className={`suitability-banner ${analysisResult.isExperienceMatch ? 'match' : 'mismatch'}`}>
-              <div className="suitability-header">
-                <span className="career-level-badge">
-                  Candidate Level: {analysisResult.careerLevel}
-                </span>
-                <span className="suitability-status">
-                  {analysisResult.isExperienceMatch ? '✅ Suitable for Role' : '⚠️ Experience Mismatch'}
-                </span>
-              </div>
-              <p className="suitability-message">{analysisResult.suitabilityFeedback}</p>
-            </div>
-
-            {/* Top Metric Cards */}
-            <div className="stats-row">
-              <div className="stat-card">
-                <span className="stat-label">JD Match Score</span>
-                <span className="stat-value text-accent">{analysisResult.jdMatchPercentage}%</span>
-              </div>
-              <div className="stat-card highlight">
-                <span className="stat-label">Shortlisting Probability</span>
-                <div className="chance-badge-group">
-                  <span className={`pill ${analysisResult.shortlistChance?.toLowerCase()}`}>
-                    {analysisResult.shortlistChance} ({analysisResult.shortlistProbability}%)
-                  </span>
-                </div>
-                <div className="meter-bar">
-                  <div
-                    className="meter-fill"
-                    style={{ width: `${analysisResult.shortlistProbability}%` }}
-                  ></div>
-                </div>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Total Experience Match</span>
-                <span className="stat-value">
-                  {analysisResult.totalExpFound} / <small style={{fontSize: '1rem', color: '#cbd5e1'}}>{analysisResult.totalExpRequired}</small>
-                </span>
-              </div>
-            </div>
-
-            {/* Navigation Tabs */}
-            <div className="tab-navigation">
-              <button
-                className={`tab-btn ${activeTab === 'experience' ? 'active' : ''}`}
-                onClick={() => setActiveTab('experience')}
-              >
-                Experience & Sentences Found
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'skills' ? 'active' : ''}`}
-                onClick={() => setActiveTab('skills')}
-              >
-                Skills Breakdown
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'recommendations' ? 'active' : ''}`}
-                onClick={() => setActiveTab('recommendations')}
-              >
-                AI Improvement Tips
-              </button>
-            </div>
-
-            {/* Tab 1: Experience Analysis */}
-            {activeTab === 'experience' && (
-              <div className="tab-content">
-                <h3 className="section-title">Required Experience vs. Resume Evidence</h3>
-                <div className="experience-list">
-                  {analysisResult.experienceBreakdown?.map((item, idx) => (
-                    <div key={idx} className={`exp-card ${item.status?.toLowerCase()}`}>
-                      <div className="exp-card-header">
-                        <div>
-                          <strong>{item.skill}</strong>
-                          <span className="exp-years-tag">
-                            JD Required: {item.required} | Found: {item.found}
-                          </span>
-                        </div>
-                        <span className={`status-pill ${item.status?.toLowerCase()}`}>
-                          {item.status}
-                        </span>
-                      </div>
-                      <div className="evidence-box">
-                        <span className="evidence-title">Extracted Sentence / Context:</span>
-                        <p className="evidence-quote">"{item.extractedSentence}"</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tab 2: Skills Breakdown */}
-            {activeTab === 'skills' && (
-              <div className="tab-content">
-                <div className="keywords-grid">
-                  <div className="keyword-card success">
-                    <h4>✅ Matched Skills ({analysisResult.matchedSkills?.length})</h4>
-                    <div className="tag-cluster">
-                      {analysisResult.matchedSkills?.map((s, i) => (
-                        <span key={i} className="skill-tag match">{s}</span>
-                      ))}
-                    </div>
+                <div className="verdict-scores">
+                  <div className="score-pill">
+                    <span>JD Match:</span>
+                    <strong>{result.matchPercentage}%</strong>
                   </div>
-                  <div className="keyword-card warning">
-                    <h4>❌ Missing Criteria from JD ({analysisResult.missingSkills?.length})</h4>
-                    <div className="tag-cluster">
-                      {analysisResult.missingSkills?.map((s, i) => (
-                        <span key={i} className="skill-tag miss">{s}</span>
-                      ))}
-                    </div>
+                  <div className="score-pill">
+                    <span>Shortlisting:</span>
+                    <strong style={{ color: result.shortlistChance === 'HIGH' ? '#4ade80' : result.shortlistChance === 'MODERATE' ? '#facc15' : '#f87171' }}>
+                      {result.shortlistChance} ({result.shortlistProbability}%)
+                    </strong>
                   </div>
                 </div>
               </div>
-            )}
+              <p className="verdict-summary">{result.verdictSummary}</p>
+            </div>
 
-            {/* Tab 3: Recommendations */}
-            {activeTab === 'recommendations' && (
-              <div className="tab-content">
-                <div className="recommendations-box">
-                  <h4>Key Adjustments for this Job Description:</h4>
-                  <ul>
-                    {analysisResult.recommendations?.map((rec, i) => (
-                      <li key={i}>{rec}</li>
-                    ))}
-                  </ul>
+            {/* 2. Primary Skills vs Secondary Skills Grid */}
+            <div className="skills-evaluation-grid">
+              
+              {/* Primary Skills Card */}
+              <div className="eval-card primary-card">
+                <div className="eval-card-header">
+                  <h3>⚡ Primary Skills (Mandatory)</h3>
+                  <span className="skill-counter">
+                    {result.matchedPrimary.length} of {result.primarySkills.length} Matched
+                  </span>
+                </div>
+
+                <div className="skill-group">
+                  <span className="group-label success-label">✅ Matched in Resume:</span>
+                  <div className="tag-cluster">
+                    {result.matchedPrimary.length > 0 ? (
+                      result.matchedPrimary.map((s, idx) => (
+                        <span key={idx} className="skill-tag match">{s}</span>
+                      ))
+                    ) : (
+                      <span className="none-text">None found in resume</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="skill-group" style={{ marginTop: '1rem' }}>
+                  <span className="group-label danger-label">❌ Missing from Resume:</span>
+                  <div className="tag-cluster">
+                    {result.missingPrimary.length > 0 ? (
+                      result.missingPrimary.map((s, idx) => (
+                        <span key={idx} className="skill-tag miss">{s}</span>
+                      ))
+                    ) : (
+                      <span className="success-text">All primary skills matched!</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* Secondary Skills Card */}
+              <div className="eval-card secondary-card">
+                <div className="eval-card-header">
+                  <h3>🌟 Secondary Skills (Preferred / Bonus)</h3>
+                  <span className="skill-counter">
+                    {result.matchedSecondary.length} of {result.secondarySkills.length} Matched
+                  </span>
+                </div>
+
+                <div className="skill-group">
+                  <span className="group-label success-label">✅ Matched in Resume:</span>
+                  <div className="tag-cluster">
+                    {result.matchedSecondary.length > 0 ? (
+                      result.matchedSecondary.map((s, idx) => (
+                        <span key={idx} className="skill-tag match">{s}</span>
+                      ))
+                    ) : (
+                      <span className="none-text">None found in resume</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="skill-group" style={{ marginTop: '1rem' }}>
+                  <span className="group-label warning-label">⚠️ Missing Preferred Skills:</span>
+                  <div className="tag-cluster">
+                    {result.missingSecondary.length > 0 ? (
+                      result.missingSecondary.map((s, idx) => (
+                        <span key={idx} className="skill-tag miss-secondary">{s}</span>
+                      ))
+                    ) : (
+                      <span className="success-text">All secondary skills matched!</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. Minimum Qualifications & Eligibility Check */}
+            <div className="qualifications-panel glass-panel">
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: '#00f0ff' }}>
+                🎓 Minimum Qualifications & Eligibility Check
+              </h3>
+              <div className="qual-grid">
+                <div className="qual-item">
+                  <span className="qual-title">Degree / Education Eligibility:</span>
+                  <span className={`status-pill ${result.educationStatus === 'MET' ? 'high' : 'moderate'}`}>
+                    {result.educationStatus}
+                  </span>
+                </div>
+                <div className="qual-item">
+                  <span className="qual-title">Experience Requirement:</span>
+                  <span><strong>{result.jdExpLabel}</strong></span>
+                  <span className={`status-pill ${result.expStatus.startsWith('MET') ? 'high' : 'moderate'}`} style={{ marginLeft: '0.5rem' }}>
+                    {result.expStatus}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. Actionable AI Improvement Tips */}
+            <div className="tips-panel glass-panel">
+              <h3 style={{ fontSize: '1.15rem', color: '#00f0ff', marginBottom: '1rem' }}>
+                💡 Direct AI Improvement Tips for this Job Description:
+              </h3>
+              <ul className="tips-list">
+                {result.improvementTips.map((tip, idx) => (
+                  <li key={idx} className="tip-item">
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
           </div>
         )}
       </main>

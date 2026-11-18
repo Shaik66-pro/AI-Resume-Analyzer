@@ -543,3 +543,197 @@ header p {
   display: inline-block;
   width: fit-content;
 }
+
+/* --- Target Role Verdict Box --- */
+.target-role-verdict-box {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.verdict-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.verdict-badge {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.verdict-scores {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.score-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.85rem;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.verdict-summary {
+  color: #cbd5e1;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* --- Primary vs Secondary Skills Evaluation Grid --- */
+.skills-evaluation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .skills-evaluation-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.eval-card {
+  background: var(--glass-highlight);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.eval-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.eval-card-header h3 {
+  font-size: 1.05rem;
+  color: #ffffff;
+}
+
+.skill-counter {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-color);
+  background: rgba(0, 240, 255, 0.1);
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.skill-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.group-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.success-label { color: #34d399; }
+.danger-label { color: #f87171; }
+.warning-label { color: #facc15; }
+
+.skill-tag.miss-secondary {
+  background: rgba(250, 204, 21, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.none-text {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.success-text {
+  font-size: 0.85rem;
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* --- Qualifications Panel --- */
+.qualifications-panel {
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.qual-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .qual-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qual-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.qual-title {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* --- Tips Panel --- */
+.tips-panel {
+  padding: 1.5rem;
+}
+
+.tips-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.tip-item {
+  position: relative;
+  padding-left: 1.6rem;
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.tip-item::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  color: var(--accent-color);
+  font-weight: bold;
+}
+
